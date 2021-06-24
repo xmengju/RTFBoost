@@ -207,3 +207,21 @@ cal_error <- function(trim_prop, trim_c, err_type, f_t_test, y_test){
   
 }
 
+
+# transform a basis matrix to an orthonormal basis matrix
+compute.orthonormal <- function(B, grid, t_range){
+  
+  d <- ncol(B)
+  Phi_i <- B
+  Psi <- matrix(NA, nrow = nrow(B), ncol(B))
+  Psi[,1] <-   B[,1]/ sqrt(riemman(B[,1]*B[,1], grid, t_range))
+  
+  for(i in 2:d){
+    for(j in 1:(i-1)){
+      Phi_i[,i] <-   Phi_i[,i]  -  riemman(Phi_i[,i]*Psi[,j], grid, t_range) * Psi[,j]
+    }
+    Psi[,i] <-   Phi_i[,i]/ sqrt(riemman(Phi_i[,i]*Phi_i[,i], grid, t_range))
+  }
+  return(Psi)
+}
+

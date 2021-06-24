@@ -54,12 +54,16 @@ TREE.control <- function(make_prediction = TRUE, d = 1, minbucket = 2, tree_type
 
 TREE <-function(x, y, z, newx, newy, newz, random.seed, control = TREE.control()) {
   
-  my.envir <- list2env(control)
-  control_names <- names(control)
-  for(g in  control_names) {
-    assign(g, get(g, envir=my.envir))
-  }
+  make_prediction <- control$make_prediction
+  d <- control$d
+  minbucket <- control$minbucket 
+  tree_type <- control$tree_type
+  num_index <- control$num_index
   
+  nmulti <- control$nmulti
+  nscreen <- control$nscreen
+  num_dir <- control$num_dir
+
   if(exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
     oldseed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
     on.exit(assign(".Random.seed", oldseed, envir = .GlobalEnv))

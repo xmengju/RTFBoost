@@ -141,32 +141,44 @@ RTFBoost.control <- function(make_prediction = TRUE, eff_m = 0.95, bb = 0.5, tri
 #' }    
 #' @export
 
-RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_val, x_test, z_test = NULL, y_test, grid, t_range,  control = TFBoost.control()){
+RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_val, x_test, z_test = NULL, y_test, grid, t_range,  tree_init = NULL, control = RTFBoost.control()){
   
-  my.envir <- list2env(control)
-  control_names <- names(control)
-  for(g in  control_names) {
-    assign(g, get(g, envir=my.envir))
-  }
-  
+
   if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
     oldseed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
     on.exit(assign(".Random.seed", oldseed, envir = .GlobalEnv))
   }
   
   ss <- NULL; cc <- NULL
+  
+  make_prediction <- control$make_prediction
+  trim_prop <- control$trim_prop; trim_c <- control$trim_c 
+  tree_control <- control$tree_control
+  type <- control$type  
+  trace <- control$trace
+  nknot <- control$nknot
+  save_f <- control$save_f
+  save_tree <- control$save_tree
+  n_init <- control$n_init
+  niter <- control$niter 
+  error_type <- control$error_type
+  shrinkage <- control$shrinkage
+  precision <- control$precision
+  init_type <- control$init_type
+  max_depth_init <- control$max_depth_init
+  min_leaf_size_init <- control$min_leaf_size_init
+  
   if(type == "RR"){
-    n_init <- control$n_init
     cc <- control$cc_s
     cc_m <- control$cc_m
+    bb <- control$bb
   }
-  
 
   n_train <- nrow(x_train)
   n_val <- nrow(x_val)
   
   if(save_f){
-    save_f_train <- matrix(NA, n_train, niter )
+    save_f_train <- matrix(NA, n_train, niter)
     save_f_val <- matrix(NA, n_val, niter )
   }
   
@@ -209,17 +221,20 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   func.grad <- init_tmp$func.grad
   # initialization
   if(init_type == "LADTree"){
+    
       if(is.null(z_train)){
         dat_tmp <- data.frame(x_train, y_train = y_train)
       }else{
         dat_tmp <- data.frame(x_train, y_train = y_train, z_train = z_train)
       }
     
-    tree_init <- TREE.init(x = train_predictors, y = y_train, z = z_train, newx = val_predictors, newy = y_val, 
-                           newz = z_val, random.seed = 0, 
-                           max_depth_init = max_depth_init,  
-                           min_leaf_size_init = min_leaf_size_init,
-                           num_dir = tree_control$num_dir, make_prediction = make_prediction)
+    if(is.null(tree_init)){
+      tree_init <- TREE.init(x = train_predictors, y = y_train, z = z_train, newx = val_predictors, newy = y_val, 
+                             newz = z_val, random.seed = 0, 
+                             max_depth_init = max_depth_init,  
+                             min_leaf_size_init = min_leaf_size_init,
+                             num_dir = tree_control$num_dir, make_prediction = make_prediction)
+    }
 
     f_train_early <- f_train_t <-  TREE.init.predict(tree_init, newx = train_predictors, newz = z_train)$pred
     f_val_early <- f_val_t <-  TREE.init.predict(tree_init, newx = val_predictors, newz = z_val)$pred
@@ -244,8 +259,6 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   
   for(i in 1:niter){
     
-    print(i)
-    
     if(save_f){
       save_f_train[,i] <- f_train_t
       save_f_val[,i] <- f_val_t
@@ -259,8 +272,7 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
       if(i%%100 ==0 )
       print(paste(i,"th iteration out of", niter, "iterations"))
     }
-    
-
+  
     u <- as.numeric(cal.neggrad(type, y_train,f_train_t, func.grad, init_status, ss, cc))
     tree.obj[[i]] <- TREE(x = train_predictors, y = u, z = z_train, newx = val_predictors, newz = z_val, random.seed = i, control = tree_control)
     h_train_t <-tree.obj[[i]]$pred_train
@@ -274,8 +286,6 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
     #err_val[i] <- mse(f_val_t, y_val)
     err_train[i] <- mean(abs(f_train_t - y_train))
     err_val[i] <- mean(abs(f_val_t - y_val))
-    
-    
     
     if(type == "RR"){
       if(init_status == 0){
@@ -398,78 +408,69 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
 
 RTFBoost.predict <- function(model, newx, newy, newz = NULL){
 
-  my.envir <- list2env(model$control)
-  control_names <- names(model$control)
-  for(g in  control_names) {
-    assign(g, get(g, envir=my.envir))
-  }
-  
-  my.envir <- list2env(model)
-  control_names <- names(model)
-  for(g in  control_names) {
-    assign(g, get(g, envir=my.envir))
-  }
- 
-  if(save_f){
-    save_f_test <- matrix(NA, nrow(newx), early_stop)
+  control <- model$control
+
+  if(control$save_f){
+    save_f_test <- matrix(NA, nrow(newx), model$early_stop)
   }
 
-  test_predictors <- t(apply(newx, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
+  test_predictors <- t(apply(newx, 1, function(xx){apply(model$B, 2, function(bb){riemman (xx*bb, model$grid, model$t_range)})}))
   
   if(control$init_type == "LADTree"){
-    f_test_t  <- TREE.init.predict(tree_init, newx = test_predictors, newz = z_test)$pred
+    f_test_t  <- TREE.init.predict(model$tree_init, newx = test_predictors, newz = z_test)$pred
   }else{
-    f_test_t  <- f_train_init
+    f_test_t  <- model$f_train_init
   }
-  err_test <- data.frame(matrix(NA, nrow = early_stop, ncol = length(error_type)))
-  colnames(err_test) <- error_type
+  err_test <- data.frame(matrix(NA, nrow = model$early_stop, ncol = length(control$error_type)))
+  colnames(err_test) <- control$error_type
   
-  if((control$type == "RR") && (control$n_init < early_stop)){
-    for(i in 1: when_init){
-      if(save_f){
+  if((control$type == "RR") && (control$n_init < model$early_stop)){
+    for(i in 1: model$when_init){
+      if(control$save_f){
         save_f_test[,i] <- f_test_t
       }
-      f_test_t <- f_test_t + shrinkage*alpha[i]* TREE.predict(tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
+      f_test_t <- f_test_t + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
       
-      for(err_type in error_type){
-        err_test[i,err_type] <- cal_error(trim_prop, trim_c, err_type, f_test_t, y_test)
+      for(err_type in control$error_type){
+        err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, y_test)
       }
 
     }
-    for(i in (n_init+1):early_stop_idx){
-      if(save_f){
+    for(i in (control$n_init+1):model$early_stop){
+      if(control$save_f){
         save_f_test[,i] <- f_test_t
       }
-      f_test_t <- f_test_t + shrinkage*alpha[i]* TREE.predict(tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
+      f_test_t <- f_test_t + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
       
       if(!missing(newy)){
-        for(err_type in error_type){
-          err_test[i,err_type] <- cal_error(trim_prop, trim_c, err_type, f_test_t, y_test)
+        for(err_type in control$error_type){
+          err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, y_test)
         }   
       }
     }
   }else{
-    for(i in 1: early_stop){
-      if(save_f){
+    for(i in 1: model$early_stop){
+      if(control$save_f){
         save_f_test[,i] <- f_test_t
       }
-      f_test_t <- f_test_t + shrinkage*alpha[i]* TREE.predict(tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
+      f_test_t <- f_test_t + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
+      
       if(!missing(newy)){
-        for(err_type in error_type){
-          err_test[i,err_type] <- cal_error(trim_prop, trim_c, err_type, f_test_t, y_test)
-        }
+        for(err_type in control$error_type){
+          err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, y_test)
+        }   
       }
     }
   }
   
-  if((missing(newy)) & (save_f == FALSE)){
+  if((missing(newy)) & (control$save_f == FALSE)){
     return(f_test_t)
   }else{
     res <- list(pred = f_test_t)
     if(!missing(newy)){
       res <- c(res, list(err_test = err_test))
     }
-    if(save_f){
+    if(control$save_f){
       res <- c(res,  list(save_f_test =  save_f_test))
     }
     return(res)
@@ -477,68 +478,61 @@ RTFBoost.predict <- function(model, newx, newy, newz = NULL){
 }
 
 
-# transform a basis matrix to an orthonormal basis matrix
-compute.orthonormal <- function(B, grid, t_range){
-  
-  d <- ncol(B)
-  Phi_i <- B
-  Psi <- matrix(NA, nrow = nrow(B), ncol(B))
-  Psi[,1] <-   B[,1]/ sqrt(riemman(B[,1]*B[,1], grid, t_range))
-  
-  for(i in 2:d){
-    for(j in 1:(i-1)){
-      Phi_i[,i] <-   Phi_i[,i]  -  riemman(Phi_i[,i]*Psi[,j], grid, t_range) * Psi[,j]
-    }
-    Psi[,i] <-   Phi_i[,i]/ sqrt(riemman(Phi_i[,i]*Phi_i[,i], grid, t_range))
-  }
-  return(Psi)
-}
+RTFBoost.validation <- function(functionx_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_val, x_test, z_test = NULL, y_test, grid, t_range, 
+                                max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = RTFBoost.control()){
 
-
-RTFBoost.validation <-function(x_train, y_train, x_val, y_val, x_test, y_test, type = "RRBoost", error = c("rmse","aad"),  niter = 1000, max_depth = 1, y_init = "LADTree", max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = Boost.control()){
-  
   control_tmp <- control
-  if(control$cal_imp == TRUE){
-    control_tmp$cal_imp <- FALSE
-    control_tmp$save_tree <- TRUE
-  }
+
+  control_tmp$init_type <- "median"
+  model_best <- RTFBoost(x_train = x_train, y_train = y_train,  x_val = x_val,  y_val = y_val,
+                         x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, 
+                         control = control_tmp)
   
-  model_best <- Boost(x_train = x_train, y_train = y_train, x_val = x_val, y_val = y_val, x_test = x_test, y_test = y_test, type = type, error = error,  niter = niter, y_init = "median", max_depth = max_depth, control =  control_tmp)
-  flagger_outlier <- which(abs(model_best$f_t_val - y_val)>3*mad(model_best$f_t_val - y_val))
+  
+  flagger_outlier <- which(abs(model_best$f_val_t - y_val)>3*mad(model_best$f_val_t - y_val))
   
   if(length(flagger_outlier)>=1){
-    best_err <- mean(abs(model_best$f_t_val[-flagger_outlier] - y_val[-flagger_outlier]))  #test with tau-scale
+    best_err <- mean(abs(model_best$f_val_t[-flagger_outlier] - y_val[-flagger_outlier]))  #test with tau-scale
   }else{
-    best_err <- mean(abs(model_best$f_t_val - y_val))
+    best_err <- mean(abs(model_best$f_val_t - y_val))
   }
   
   params = c(0,0)
   errs_val <-  rep(NA, 1+ length(min_leaf_size_init_set)*length(max_depth_init_set))
-  errs_test <- matrix(NA, 1+ length(min_leaf_size_init_set)*length(max_depth_init_set), length(error))
+  errs_test <- matrix(NA, 1+ length(min_leaf_size_init_set)*length(max_depth_init_set), length(control$error_type))
   errs_val[1] <- best_err
   
   if(control$make_prediction){
-    errs_test[1,] <- as.numeric(model_best$value)
+    errs_test[1,] <- as.numeric(model_best$err_test[control$niter,])
   }
   
-  if(y_init == "LADTree") {
+  if(control$init_type == "LADTree") {
     model_pre_tree <- NA
     combs <- expand.grid(min_leafs= sort(min_leaf_size_init_set,TRUE), max_depths= max_depth_init_set)
-    j_tmp <- rep(1, nrow(combs))
+    j_tmp <- rep(1, nrow(combs)) #need to consider that tree or not
     
-    tree_init <- list()
+    tree_init_list <- list()
     for(j in 1:nrow(combs)) {
       min_leaf_size <- combs[j, 1]
       max_depths <- combs[j, 2]
-      dat_tmp <- data.frame(x_train, y_train = y_train)
-      tree_init[[j]] <- rpart(y_train~ ., data = dat_tmp,control = rpart.control(maxdepth = max_depths, minbucket = min_leaf_size, xval = 0, cp = -Inf), method = alist)
-    }
+      if(is.null(z_train)){
+        dat_tmp <- data.frame(x_train, y_train = y_train)
+      }else{
+        dat_tmp <- data.frame(x_train, y_train = y_train, z_train = z_train)
+      }
+      
+      tree_init_list[[j]] <- TREE.init(x = train_predictors, y = y_train, z = z_train, newx = val_predictors, newy = y_val, 
+                             newz = z_val, random.seed = 0, 
+                             max_depth_init = max_depths,  
+                             min_leaf_size_init = min_leaf_size,
+                             num_dir = control$tree_control$num_dir, make_prediction = make_prediction)
+     }
     
     for(j in 1:length(max_depth_init_set)){
       for(k in 1:(length(min_leaf_size_init_set)-1)){
         idx_jk <- which(combs[,1] == sort(min_leaf_size_init_set, TRUE)[k] & combs[,2] == max_depth_init_set[j])
         idx_jk_plus<- which(combs[,1] == sort(min_leaf_size_init_set, TRUE)[k+1] & combs[,2] == max_depth_init_set[j])
-        equal_tmp<- all.equal(tree_init[[idx_jk]],tree_init[[idx_jk_plus]]) == TRUE
+        equal_tmp<- all.equal(tree_init_list[[idx_jk]]$tree.model,tree_init_list[[idx_jk_plus]]$tree.model) == TRUE
         if(length(equal_tmp)==2 & sum(equal_tmp) == 0){
           j_tmp[ idx_jk_plus] <- 0
         }
@@ -549,42 +543,47 @@ RTFBoost.validation <-function(x_train, y_train, x_val, y_val, x_test, y_test, t
       for(j in 1:(length(max_depth_init_set)-1)){
         idx_kj <- which(combs[,1] == sort(min_leaf_size_init_set, TRUE)[k] & combs[,2] == max_depth_init_set[j])
         idx_kj_plus<- which(combs[,1] == sort(min_leaf_size_init_set, TRUE)[k] & combs[,2] == max_depth_init_set[j+1])
-        equal_tmp<- all.equal(tree_init[[idx_kj]],tree_init[[idx_kj_plus]]) == TRUE
+        equal_tmp<- all.equal(tree_init_list[[idx_kj]]$tree.model,tree_init_list[[idx_kj_plus]]$tree.model) == TRUE
         if(length(equal_tmp)==2 & sum(equal_tmp) == 0){
           j_tmp[idx_kj_plus] <- 0
         }
       }
     }
     
-    #print(j_tmp)
+    print(j_tmp)
+    
+    err_cvs <- matrix(NA, length(j_tmp))
     
     for(j in 1:nrow(combs)) {
       
+      print(j)
       if(j_tmp[j] == 1){
         
         min_leaf_size <- combs[j, 1]
         max_depths <- combs[j, 2]
         control_tmp$max_depth_init <- max_depths
         control_tmp$min_leaf_size_init  <- min_leaf_size
-        model_tmp <- Boost(x_train = x_train, y_train = y_train, x_val = x_val, y_val = y_val, x_test = x_test, y_test = y_test, type = type, error= error,
-                           niter = niter, y_init =  "LADTree", max_depth = max_depth,
-                           control= control_tmp, tree_init[[j]])
         
+        model_tmp <- RTFBoost(x_train = x_train, y_train = y_train,  x_val = x_val,  y_val = y_val,
+                              x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, tree_init= tree_init_list[[j]],
+                              control = control)
+  
         if(length(flagger_outlier)>=1){
-          err_tmp <- mean(abs(model_tmp$f_t_val[-flagger_outlier] - y_val[-flagger_outlier]))
+          err_tmp <- mean(abs(model_tmp$f_val_t[-flagger_outlier] - y_val[-flagger_outlier]))
         }else{
-          err_tmp <- mean(abs(model_tmp$f_t_val - y_val))
+          err_tmp <- mean(abs(model_tmp$f_val_t - y_val))
         }
         
         errs_val[j+1] <- err_tmp
         
         if(control$make_prediction){
-          errs_test[j+1,] <- as.numeric(model_tmp$value)
+          errs_test[j+1,] <- as.numeric(model_tmp$err_test[control$niter,])
         }
         
         if(control$trace){
           print(paste("leaf size:", min_leaf_size, " depths:", max_depths, " err(val):", round(err_tmp,4), " best err(val) :", round(best_err,4) ,sep = ""))
         }
+        err_cvs[j] <- err_tmp 
         if(err_tmp < best_err) {
           model_best <- model_tmp
           params <- combs[j, ]
@@ -598,10 +597,7 @@ RTFBoost.validation <-function(x_train, y_train, x_val, y_val, x_test, y_test, t
   }
   
  
-  if(control$save_tree == FALSE){
-    model_best$tree_list = NULL
-    model_best$tree_init = NULL
-  }
+  model_best$err_cvs <- err_cvs
   model_best$params = params
   
   return(model_best)
