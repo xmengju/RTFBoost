@@ -76,7 +76,7 @@ cal.neggrad <- function(type, y_train,f_train_t, func.grad, init_status, ss, cc)
     neg_grad <- - func.grad((f_train_t - y_train)/ss, cc = cc)/ss
   }
   
-  if(type == "L2"){
+  if(type %in% c("L2","LAD")){
    neg_grad <- -func.grad(f_train_t - y_train)
   }
   return(neg_grad)

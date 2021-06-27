@@ -196,11 +196,11 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   }
   
 
-  dd <- 4; p <- ncol(x_train)
+  deg <- 4; p <- ncol(x_train)
   grid0 <- seq(t_range[1],t_range[2], 1/(10*(p-1))) # in case of not evenly spaced
   knot <- quantile(grid0, (1:nknot)/(nknot+1) )
-  delta <- sort(c(rep(range(grid0), dd), knot)) #exterior knots
-  B<- spline.des(delta, grid, dd)$design
+  delta <- sort(c(rep(range(grid0), deg), knot)) #exterior knots
+  B<- spline.des(delta, grid, deg)$design
   B <- compute.orthonormal(B,grid, t_range)
   train_predictors <- t(apply(x_train, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
   val_predictors <- t(apply(x_val, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
@@ -417,7 +417,7 @@ RTFBoost.predict <- function(model, newx, newy, newz = NULL){
   test_predictors <- t(apply(newx, 1, function(xx){apply(model$B, 2, function(bb){riemman (xx*bb, model$grid, model$t_range)})}))
   
   if(control$init_type == "LADTree"){
-    f_test_t  <- TREE.init.predict(model$tree_init, newx = test_predictors, newz = z_test)$pred
+    f_test_t  <- TREE.init.predict(model$tree_init, newx = test_predictors, newz = newz)$pred
   }else{
     f_test_t  <- model$f_train_init
   }
@@ -432,19 +432,19 @@ RTFBoost.predict <- function(model, newx, newy, newz = NULL){
       f_test_t <- f_test_t + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
       
       for(err_type in control$error_type){
-        err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, y_test)
+        err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, newy)
       }
-
     }
     for(i in (control$n_init+1):model$early_stop){
       if(control$save_f){
         save_f_test[,i] <- f_test_t
       }
+
       f_test_t <- f_test_t + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.obj[[i]], newx =  test_predictors, newz = newz)$pred
       
       if(!missing(newy)){
         for(err_type in control$error_type){
-          err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, y_test)
+          err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, newy)
         }   
       }
     }
@@ -457,7 +457,7 @@ RTFBoost.predict <- function(model, newx, newy, newz = NULL){
       
       if(!missing(newy)){
         for(err_type in control$error_type){
-          err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, y_test)
+          err_test[i,err_type] <- cal_error(control$trim_prop, control$trim_c, err_type, f_test_t, newy)
         }   
       }
     }
@@ -478,7 +478,7 @@ RTFBoost.predict <- function(model, newx, newy, newz = NULL){
 }
 
 
-RTFBoost.validation <- function(functionx_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_val, x_test, z_test = NULL, y_test, grid, t_range, 
+RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_val, x_test, z_test = NULL, y_test, grid, t_range, 
                                 max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = RTFBoost.control()){
 
   control_tmp <- control
@@ -506,6 +506,15 @@ RTFBoost.validation <- function(functionx_train, z_train = NULL, y_train,  x_val
     errs_test[1,] <- as.numeric(model_best$err_test[control$niter,])
   }
   
+  deg <- 4; p <- ncol(x_train)
+  grid0 <- seq(t_range[1],t_range[2], 1/(10*(p-1))) # in case of not evenly spaced
+  knot <- quantile(grid0, (1:nknot)/(nknot+1) )
+  delta <- sort(c(rep(range(grid0), deg), knot)) #exterior knots
+  B<- spline.des(delta, grid, deg)$design
+  B <- compute.orthonormal(B,grid, t_range)
+  train_predictors <- t(apply(x_train, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
+  val_predictors <- t(apply(x_val, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
+  
   if(control$init_type == "LADTree") {
     model_pre_tree <- NA
     combs <- expand.grid(min_leafs= sort(min_leaf_size_init_set,TRUE), max_depths= max_depth_init_set)
@@ -525,7 +534,7 @@ RTFBoost.validation <- function(functionx_train, z_train = NULL, y_train,  x_val
                              newz = z_val, random.seed = 0, 
                              max_depth_init = max_depths,  
                              min_leaf_size_init = min_leaf_size,
-                             num_dir = control$tree_control$num_dir, make_prediction = make_prediction)
+                             num_dir = control$tree_control$num_dir, make_prediction = control$make_prediction)
      }
     
     for(j in 1:length(max_depth_init_set)){
