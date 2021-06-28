@@ -2,10 +2,10 @@ rm(list = ls())
 library(rpart)
 library(splines)
 library(RobustFPLM)
-source("R/FPLMBsplines.R")
-source("R/FPLMBsplines_fit.R")
-source("R/minimize.R")
-source("R/goodness.R")
+source("../RobustFPLM/R/FPLMBsplines.R")
+source("../RobustFPLM/R/FPLMBsplines_fit.R")
+source("../RobustFPLM/R/minimize.R")
+source("../RobustFPLM/R/goodness.R")
 source("Code/RTFBoost.R")
 source("Code/TREE.init.R")
 source("Code/TREE.R")
@@ -17,76 +17,22 @@ source("Code/Exp_A/dat_gen.R")
 
 args <- commandArgs(trailingOnly = TRUE) 
 x_type <- c("mattern") 
-case_id <- 1
+case_id <- 0
 nknot <-3
 g_func_nos <- c(1,7,8,9)
 ds <- c(1,2,3,4)
 SNRs <- c(5)
 shrinkage <- 0.05
 dds <- c("D0","D1","D2")
-
-if(case_id == 1){
-  niter <- 1000 
-  ncol_num <- 2
-}
-
-if(length(args)== 0){
-  g_func_nos <- c(1,7)
-  SNR <- 5
-  ds <- c(1,3)
-  test <- TRUE
-  RNGkind(sample.kind = "default")
-  exp_id <- 1  # row index in the conduct_sheet 
-  case_id <- 1 # shrinkage id  0 means only run FPPR and FAM
-  niter <- 2
-  if(case_id == 1){
-    n_init <- 500
-    niter <- 1000  
-    ncol_num <- 10
-  }
-  if(case_id == 0){
-    n_init <- 500 # doesn't matter
-    niter <- 1000  # doesn't matter
-    ncol_num <- 2
-  }
-}else{
-  test <- FALSE
-  exp_id <- as.numeric(args[1]) 
-  case_id <- as.numeric(args[2]) 
-  if(case_id == 1){
-    n_init <- 500
-    niter <- 1000  
-    ncol_num <- 10
-  }
-  if(case_id == 0){
-    n_init <- 500 # doesn't matter
-    niter <- 1000  # doesn't matter
-    ncol_num <- 2
-  }
-}
-
-
 seeds <- 1:30
-
-if(case_id == 0){
-  ds <- 1
-}
-
+test <- FALSE
+niter <- 1000; n_init <- 500 # does not matter
 all_exps <- expand.grid(g_func_nos, ds, dds, seeds, SNRs)
 colnames(all_exps) <- c("g_func_no", "d","dd","seed","SNR" )
 
-if(nrow(all_exps)%%ncol_num!=0){
-  
-  if(nrow(all_exps)%%ncol_num!=0){
-    conduct_sheet <- matrix(c(1:nrow(all_exps), rep(NA, ncol_num - nrow(all_exps)%%ncol_num)), ncol = ncol_num)
-  }else{
-    conduct_sheet <- matrix(c(1:nrow(all_exps)), ncol = ncol_num)
-  }
-}else{
-  conduct_sheet <- matrix(1:nrow(all_exps), ncol = ncol_num)
-}
+ncol_num <- 1
+conduct_sheet <- matrix(1:nrow(all_exps), ncol = ncol_num)
 
-print(dim(conduct_sheet))
 
 conduct.exp <- function(exp_id = 1, conduct_sheet){
   
@@ -135,5 +81,7 @@ conduct.exp <- function(exp_id = 1, conduct_sheet){
   }
 }
 
-
-conduct.exp(exp_id = exp_id, conduct_sheet)
+i = 1
+for(i in 1:nrow(all_exps)){
+  conduct.exp(exp_id = i, conduct_sheet)
+}

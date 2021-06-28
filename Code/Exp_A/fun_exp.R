@@ -26,7 +26,7 @@ set.control <- function(d, precision,  shrinkage, nknot, n_init, niter){
 exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, niter, grid, t_range, control.tree.list){
   
   model.tree.list <- list()
-  err_trains <- err_tests <-   err_vals <-  matrix(NA, length(control.tree.list), niter)
+  err_trains <- err_tests <- err_vals <-  matrix(NA, length(control.tree.list), niter)
   res_trains <- res_tests <- res_vals <- list()
   err_test <- rep(NA, length(control.tree.list))
   err_val <- rep(NA, length(control.tree.list))
@@ -36,11 +36,12 @@ exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, nite
   
   for(i in 1:length(control.tree.list)){
     
-    print(paste(i, "out of", length(control.tree.list), "shrinkage", control.tree.list[[i]]$shrinkage, "d",control.tree.list[[i]]$tree_control$d,
+    print(paste(i, "out of", length(control.tree.list), "shrinkage", control.tree.list[[i]]$shrinkage, 
+                "d",control.tree.list[[i]]$tree_control$d, "dd", control.tree.list[[i]]$tree_control$dd,
                 "nknots", control.tree.list[[i]]$nknot))
     
     if(i <= 2){
-       tt <- system.time(model.tree.list[[i]] <- RTFBoost(x_train = x_train, y_train = y_train,  x_val = x_val,  y_val = y_val,
+       tt <- system.time(model.tree.list[[i]] <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
                                                        x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, 
                                                        control = control.tree.list[[i]]))
     }else{
@@ -49,7 +50,7 @@ exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, nite
                                                max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = control.tree.list[[i]]))
       when_init <- model.tree.list[[i]]$when_init
       err_cvs <-  model.tree.list[[i]]$err_cvs 
-      
+      params <-  model.tree.list[[i]]$params
     }
     
     time_vec[i] <- tt[3]
@@ -69,7 +70,8 @@ exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, nite
     model.tree.list[[i]] <- NULL
     
   }
-  return(list(when_init = when_init,  err_cvs =  err_cvs , res_trains = res_trains, res_vals = res_vals, res_tests = res_tests, time_vec  = time_vec, err_trains = err_trains, err_tests = err_tests, err_vals = err_vals, err_test = err_test, err_val = err_val, early_stop = early_stop))
+  return(list(params =   params, when_init = when_init,  err_cvs =  err_cvs , res_trains = res_trains, res_vals = res_vals, res_tests = res_tests, 
+              time_vec  = time_vec, err_trains = err_trains, err_tests = err_tests, err_vals = err_vals, err_test = err_test, err_val = err_val, early_stop = early_stop))
 }
 
 
@@ -87,7 +89,6 @@ do.exp <- function(seed, g_func_no, SNR, x_type, dd, control.tree.list, case_id)
   e_train <- rnorm(n_train); e_val <- rnorm(n_val);  e_test <- rnorm(n_test)
   
   set.seed(seed)
-  print(dd)
   switch(as.character(dd), 
          "D0" = {
            out_train <- out_val <- NULL
@@ -128,7 +129,19 @@ do.exp <- function(seed, g_func_no, SNR, x_type, dd, control.tree.list, case_id)
     dat2return <- exp.tree.methods(x_train, y_train, x_val, y_val, x_test, y_test, niter,  grid, t_range, control.tree.list)
   }
   if(case_id == 0){
+    u <- 1:length(y_train)
+    range_beta <- 4:15
+    range_eta <- 20
+    norder  <- 4
+    model_RobustFPLM_select <- FPLMBsplines(y = y_train, x = x_train, u = u, t = grid, range_freq = range_beta, range_spl = range_eta, 
+                                       norder = norder, fLoss = "lmrob", trace = TRUE)
     
+    range_beta <- 4:7
+    model_RobustFPLM_fix <- FPLMBsplines(y = y_train, x = x_train, u = u, t = grid, range_freq = range_beta, range_spl = range_eta, 
+                                            norder = norder, fLoss = "lmrob", trace = TRUE)
+    
+    dat2return <- list(select = FPLMBsplines.predict(model_RobustFPLM_select, newx = x_test, newy = y_test),
+                       fix = FPLMBsplines.predict(model_RobustFPLM_fix, newx = x_test, newy = y_test))
   }
 
   dat2return$S <- dat$S

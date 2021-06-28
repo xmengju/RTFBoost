@@ -2,13 +2,13 @@
 #SBATCH --job-name=FAM
 #SBATCH --output=arrayJob_%A_%a.out
 #SBATCH --error=arrayJob_%A_%a.err
-#SBATCH --array=1-25
-#SBATCH --time=24:00:00
+#SBATCH --array=1-144
+#SBATCH --time=13:00:00
 #SBATCH --ntasks=1
-#SBATCH --mem=8G
+#SBATCH --mem=4G
 #SBATCH --mail-user=xiaomeng.ju@stat.ubc.ca
 #SBATCH --mail-type=ALL
-#SBATCH --account=def-matiass
+#SBATCH --account=rrg-matiass
 
 
 ######################
@@ -30,4 +30,4 @@ module load StdEnv/2018.3
 module spider r
 module load  nixpkgs/16.09  gcc/8.3.0 r/3.6.0
 
-srun Rscript Code/Exps_A/conduct_exp.R  $SLURM_ARRAY_TASK_ID 1
+srun Rscript Code/Exp_A/conduct_exp.R  $SLURM_ARRAY_TASK_ID 1

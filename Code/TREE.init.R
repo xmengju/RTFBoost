@@ -24,7 +24,7 @@ TREE.init <- function(x, y, z, newx, newy, newz, random.seed, max_depth_init,  m
   
   if(length(used.var)==1){
     betas_selected <-data.frame(betas[, used.var])
-    names(betas_selected) <- used.var 
+    names(betas_selected) <- used.var
   }else{
     betas_selected <-betas[, used.var]
   }

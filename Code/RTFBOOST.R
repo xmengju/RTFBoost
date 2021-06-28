@@ -57,10 +57,10 @@ RTFBoost.control <- function(make_prediction = TRUE, eff_m = 0.95, bb = 0.5, tri
                              init_type = "median", n_init = 20, niter = 100, nknot = 3, save_f = FALSE, 
                              trace = FALSE, save_tree = FALSE, error_type = "mse"){
   
-  cc_s <- as.numeric(RobStatTM::lmrobdet.control(bb=.5, family='bisquare')$tuning.chi)
+  cc_s <- as.numeric(RobStatTM::lmrobdet.control(bb=bb, family='bisquare')$tuning.chi)
   cc_m <-  as.numeric(RobStatTM::lmrobdet.control(efficiency=eff_m, family='bisquare')$tuning.psi)
   
-  return(list(make_prediction =  make_prediction,  cc_s = cc_s, cc_m = cc_m, bb = bb, trim_prop = trim_prop, 
+  return(list(make_prediction =  make_prediction,  cc_s = cc_s, cc_m = cc_m, eff_m = eff_m, bb = bb, trim_prop = trim_prop, 
               trim_c = trim_c , max_depth_init = max_depth_init , min_leaf_size_init = min_leaf_size_init ,
               tree_control = tree_control, type = type,  shrinkage = shrinkage, precision = precision, 
               init_type = init_type,  n_init = n_init, niter = niter, nknot = nknot, save_f = save_f, trace = trace, 
@@ -187,10 +187,10 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   }
   
   if(!missing(z_train)){
-    if(!is.matrix(z_train)){
+    if(!is.matrix(z_train)& !is.null(z_train)){
       z_train = as.matrix(z_train, dimnames = list(NULL, names(z_train)))
     }
-    if(!is.matrix(z_val)){
+    if(!is.matrix(z_val) & !is.null(z_val)){
       z_val = as.matrix(z_val, dimnames = list(NULL, names(z_val)))
     }
   }
@@ -280,6 +280,18 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
 
     alpha[i] <- cal.alpha(f_train_t = f_train_t, h_train = h_train_t, y_train = y_train, func = func, type = type,
                           init_status = init_status, ss = ss, cc = cc)
+    
+    # ress <- NULL
+    # for(alpha.candidate in seq(0,200, 0.5)){
+    #   if(i < n_init){
+    #   ress <- c(ress, RobStatTM::mscale(f_train_t + alpha.candidate*h_train_t- y_train))
+    #   }else{
+    #     ress <- c(ress, mean(func(   (f_train_t + alpha.candidate*h_train_t- y_train)/ss, cc = cc)))
+    #     
+    #   }
+    #   
+    # }
+    # plot(ress~seq(0,200, 0.5), main = alpha[i])
     f_train_t <-  f_train_t + shrinkage*alpha[i]*h_train_t
     f_val_t <-  f_val_t + shrinkage*alpha[i]*h_val_t
     #err_train[i] <- mse(f_train_t, y_train)
@@ -324,7 +336,7 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
     
     if((type == "RR") && (i == n_init)){
       init_status <- 1
-      f_train_t <- f_train_early  # rest the current one
+      f_train_t <- f_train_early  # reset the current one
       f_val_t <- f_val_early
       ss <-  RobStatTM::mscale(f_train_t - y_train,  tuning.chi= cc, delta = bb)
       cc <- cc_m
@@ -334,7 +346,6 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   
   f_train_t <- f_train_early
   f_val_t <- f_val_early
-  
   
   model <- c(model, list(B = B, loss_train=loss_train, loss_val = loss_val, f_train_t =  f_train_t, f_val_t = f_val_t, when_init = when_init, early_stop = early_stop, 
                 err_train = err_train,  err_val = err_val, grid = grid,  t_range = t_range, tree.obj = tree.obj, 
@@ -482,11 +493,12 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
                                 max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = RTFBoost.control()){
 
   control_tmp <- control
-
   control_tmp$init_type <- "median"
-  model_best <- RTFBoost(x_train = x_train, y_train = y_train,  x_val = x_val,  y_val = y_val,
-                         x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, 
-                         control = control_tmp)
+  
+  model_best <- RTFBoost(x_train = x_train, z_train = z_train, y_train = y_train,  
+                         x_val = x_val, z_val = z_val, y_val = y_val,
+                         x_test = x_test, z_test = z_test, y_test = y_test, 
+                         grid = grid, t_range  = t_range,  control = control_tmp)
   
   
   flagger_outlier <- which(abs(model_best$f_val_t - y_val)>3*mad(model_best$f_val_t - y_val))
@@ -503,7 +515,7 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
   errs_val[1] <- best_err
   
   if(control$make_prediction){
-    errs_test[1,] <- as.numeric(model_best$err_test[control$niter,])
+    errs_test[1,] <- as.numeric(model_best$err_test[model_best$early_stop,])
   }
   
   deg <- 4; p <- ncol(x_train)
@@ -561,8 +573,7 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
     
     print(j_tmp)
     
-    err_cvs <- matrix(NA, length(j_tmp))
-    
+
     for(j in 1:nrow(combs)) {
       
       print(j)
@@ -577,7 +588,7 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
                               x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, tree_init= tree_init_list[[j]],
                               control = control)
   
-        if(length(flagger_outlier)>=1){
+        if(length(flagger_outlier) >=1){
           err_tmp <- mean(abs(model_tmp$f_val_t[-flagger_outlier] - y_val[-flagger_outlier]))
         }else{
           err_tmp <- mean(abs(model_tmp$f_val_t - y_val))
@@ -586,13 +597,12 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
         errs_val[j+1] <- err_tmp
         
         if(control$make_prediction){
-          errs_test[j+1,] <- as.numeric(model_tmp$err_test[control$niter,])
+          errs_test[j+1,] <- as.numeric(model_tmp$err_test[model_tmp$early_stop,])
         }
         
         if(control$trace){
           print(paste("leaf size:", min_leaf_size, " depths:", max_depths, " err(val):", round(err_tmp,4), " best err(val) :", round(best_err,4) ,sep = ""))
         }
-        err_cvs[j] <- err_tmp 
         if(err_tmp < best_err) {
           model_best <- model_tmp
           params <- combs[j, ]
@@ -606,7 +616,7 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
   }
   
  
-  model_best$err_cvs <- err_cvs
+  model_best$err_cvs <- errs_val
   model_best$params = params
   
   return(model_best)
