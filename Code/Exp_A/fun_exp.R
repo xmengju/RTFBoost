@@ -19,11 +19,10 @@ set.control <- function(d, precision,  shrinkage, nknot, n_init, niter){
                                  nknot = nknot, save_f = FALSE, trace =  TRUE, save_tree = FALSE, error_type = c("mse"))
   
   return(list(control.l2 = control.l2, control.lad = control.lad, control.rr = control.rr))
-  
 }
 
 
-exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, niter, grid, t_range, control.tree.list){
+exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, niter, grid, t_range, control.tree.list, validation_tree){
   
   model.tree.list <- list()
   err_trains <- err_tests <- err_vals <-  matrix(NA, length(control.tree.list), niter)
@@ -34,26 +33,36 @@ exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, nite
   early_stop <- rep(NA, length(control.tree.list))
   time_vec <- rep(NA, length(control.tree.list))
   
+  err_cvs <- NULL;  params <- NULL
+  
   for(i in 1:length(control.tree.list)){
     
     print(paste(i, "out of", length(control.tree.list), "shrinkage", control.tree.list[[i]]$shrinkage, 
-                "d",control.tree.list[[i]]$tree_control$d, "dd", control.tree.list[[i]]$tree_control$dd,
-                "nknots", control.tree.list[[i]]$nknot))
+                "d",control.tree.list[[i]]$tree_control$d, "nknots", control.tree.list[[i]]$nknot))
     
     if(i <= 2){
-       tt <- system.time(model.tree.list[[i]] <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
+       model.tree.list[[i]] <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
                                                        x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, 
-                                                       control = control.tree.list[[i]]))
+                                                       control = control.tree.list[[i]])
     }else{
-       tt <- system.time(model.tree.list[[i]]  <- RTFBoost.validation(x_train = x_train, z_train = NULL, y_train = y_train,  x_val = x_val,  z_val = NULL, 
+      if(validation_tree){
+       model.tree.list[[i]]  <- RTFBoost.validation(x_train = x_train, z_train = NULL, y_train = y_train,  x_val = x_val,  z_val = NULL, 
                                                     y_val = y_val, x_test = x_test, z_test = NULL, y_test = y_test, grid = grid,  t_range = t_range, 
-                                               max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = control.tree.list[[i]]))
+                                               max_depth_init_set = c(1,2,3,4), min_leaf_size_init_set = c(10,20,30), control = control.tree.list[[i]])
+       err_cvs <-  model.tree.list[[i]]$err_cvs 
+       params <-  model.tree.list[[i]]$params
+       
+      }else{
+        tmp_control <-  control.tree.list[[i]]
+        tmp_control$init_type <- "median"
+        model.tree.list[[i]]  <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
+                 x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range, 
+                 control =   tmp_control)
+      }
       when_init <- model.tree.list[[i]]$when_init
-      err_cvs <-  model.tree.list[[i]]$err_cvs 
-      params <-  model.tree.list[[i]]$params
+
     }
     
-    time_vec[i] <- tt[3]
     err_trains[i,1:length(model.tree.list[[i]]$err_train)] <-model.tree.list[[i]]$err_train
     
     err_vals[i,1:length(model.tree.list[[i]]$err_val)] <-model.tree.list[[i]]$err_val
@@ -70,82 +79,96 @@ exp.tree.methods<- function(x_train, y_train, x_val, y_val, x_test, y_test, nite
     model.tree.list[[i]] <- NULL
     
   }
+  
+  
   return(list(params =   params, when_init = when_init,  err_cvs =  err_cvs , res_trains = res_trains, res_vals = res_vals, res_tests = res_tests, 
-              time_vec  = time_vec, err_trains = err_trains, err_tests = err_tests, err_vals = err_vals, err_test = err_test, err_val = err_val, early_stop = early_stop))
+            err_trains = err_trains, err_tests = err_tests, err_vals = err_vals, err_test = err_test, err_val = err_val, early_stop = early_stop))
 }
 
 
-do.exp <- function(seed, g_func_no, SNR, x_type, dd, control.tree.list, case_id){
+### choosing from c("FPPR", "FGAM", "MFLM", "RFSIR", "RFPLM", and "RTFBoost")
+
+do.exp <- function(seed, g_func_no, SNR, d, control.tree.list, methods = c("RTFBoost"), type, validation_tree) {
   
-  sd_g_list <- readRDS("Code/Exp_A/sd_g_list.rds")
-  dat_gen_control <- dat.generate.control(x_type = x_type, SNR = SNR, g_func_no = g_func_no, n_train = 400, n_val = 200, n_test = 1000, sd_g_list = sd_g_list)
-  dat <- dat.generate(seed = seed, control = dat_gen_control)
+  dat_gen_control <- dat.generate.control(SNR = SNR, g_func_no = g_func_no, n_train = 400, n_val = 200, n_test = 1000)
+  dat <- dat.generate(seed = seed, control = dat_gen_control, type = type)
   
   x_train <- dat$x$x_train;  x_val <- dat$x$x_val;  x_test <- dat$x$x_test
-  n_train <- nrow(x_train);  n_val <- nrow(x_val);  n_test <- nrow(x_test)
+  y_train <- dat$y$y_train;  y_val <- dat$y$y_val;  y_test <- dat$y$y_test
   
-  g_train <- dat$g$g_train;  g_val <- dat$g$g_val;  g_test <- dat$g$g_test
+  n_train <- nrow(x_train);  n_val <- nrow(x_val);  n_test <- nrow(x_test)
   S <- dat$S
-  e_train <- rnorm(n_train); e_val <- rnorm(n_val);  e_test <- rnorm(n_test)
+  grid <- dat$tt
+  t_range <- c(0,1)
   
   set.seed(seed)
-  switch(as.character(dd), 
-         "D0" = {
-           out_train <- out_val <- NULL
-         },
-         "D1" = {
-           out_train <- sample(n_train,size= 0.2*(n_train))
-           out_val <- sample(n_val,size= 0.2*(n_val))
-           
-           tmp_train <- rbinom(length(out_train),1,0.5)
-           tmp_val <- rbinom(length(out_val),1,0.5)
   
-           e_train[out_train] <- tmp_train* rnorm(length(out_train), mean= 20, sd = 0.1) + (1-tmp_train)* rnorm(length(out_train), mean= -20, sd = 0.1)
-           e_val[out_val] <-  tmp_val* rnorm(length(out_val), mean= 20, sd = 0.1) + (1-tmp_val)* rnorm(length(out_val), mean= -20, sd = 0.1)
-         },
-         "D2" = {
-           out_train <- sample(n_train,size= 0.2*(n_train))
-           out_val <- sample(n_val,size= 0.2*(n_val))
-           e_train[out_train] <- rnorm(length(out_train), mean= 20, sd = 0.1) 
-           e_val[out_val] <- rnorm(length(out_val), mean= 20, sd = 0.1) 
-      }
-    )
   
-  y_train <-  g_train + S*e_train 
-  y_val <-  g_val + S*e_val 
-  y_test <-  g_test + S*e_test 
+  dat2return <- list()
   
-  grid <- dat$tt
-  if(x_type == "ferraty"){
-    t_range <- c(-1,1)
-  }
-  if(x_type == "mattern"){
-    t_range <- c(0,1)
+  if("RTFBoost" %in% methods){
+    dat2return <- c(dat2return, list(RTFBoost = exp.tree.methods(x_train, y_train, x_val, y_val, x_test, y_test, niter,  grid, t_range, control.tree.list, validation_tree)))
   }
   
-  dat2return <- NULL
-  if(case_id == 1){
-    
-    dat2return <- exp.tree.methods(x_train, y_train, x_val, y_val, x_test, y_test, niter,  grid, t_range, control.tree.list)
-  }
-  if(case_id == 0){
+  if("RFPLM" %in% methods){
     u <- 1:length(y_train)
-    range_beta <- 4:15
+    range_beta <- 4:7
     range_eta <- 20
     norder  <- 4
-    model_RobustFPLM_select <- FPLMBsplines(y = y_train, x = x_train, u = u, t = grid, range_freq = range_beta, range_spl = range_eta, 
-                                       norder = norder, fLoss = "lmrob", trace = TRUE)
+    model_RobustFPLM <- FPLMBsplines(y = y_train, x = x_train, u = u, t = grid, range_freq = range_beta, range_spl = range_eta, 
+                                     norder = norder, fLoss = "lmrob", trace = TRUE)
     
-    range_beta <- 4:7
-    model_RobustFPLM_fix <- FPLMBsplines(y = y_train, x = x_train, u = u, t = grid, range_freq = range_beta, range_spl = range_eta, 
-                                            norder = norder, fLoss = "lmrob", trace = TRUE)
-    
-    dat2return <- list(select = FPLMBsplines.predict(model_RobustFPLM_select, newx = x_test, newy = y_test),
-                       fix = FPLMBsplines.predict(model_RobustFPLM_fix, newx = x_test, newy = y_test))
+    dat2return <- c(dat2return, list(RFPLM = FPLMBsplines.predict(model_RobustFPLM, newx = x_test, newy = y_test)))
   }
-
-  dat2return$S <- dat$S
-  dat2return$out_train <- out_train
-  dat2return$out_val <- out_val
+  
+  if("MFLM" %in% methods){
+    u <- 1:length(y_train)
+    range_beta <- 4:5
+    range_eta <- 20
+    norder  <- 4
+    model_MFLM <- FPLMBsplines(y = y_train, x = x_train, u = u, t = grid, range_freq = range_beta, range_spl = range_eta, 
+                               norder = norder, fLoss = "huang", trace = TRUE)
+    
+    dat2return <- c(dat2return, list(MFLM = FPLMBsplines.predict(model_MFLM, newx = x_test, newy = y_test))) 
+  }
+  
+  if("FGAM" %in% methods){
+    
+    xx <- x_train
+    yy <- y_train
+    nbasises_FGAM <- 15
+    model_FGAM <- fgam(yy ~ af(xx, splinepars=list(k=c(nbasises_FGAM,nbasises_FGAM),m=list(c(2,2),c(2,2)))), gamma = 1.2, method="REML")
+    
+    err_test_FGAM <-  mean((predict(model_FGAM ,newdata=list(xx =x_test),type='response')- y_test)^2)
+    err_train_FGAM <-   mean((predict(model_FGAM ,newdata=list(xx =x_train),type='response')-y_train)^2)
+    
+    FGAM <- list (err_test  = err_test_FGAM, err_train =  err_train_FGAM)
+    
+    dat2return <- c(dat2return, list(FGAM =FGAM))
+  }
+  
+  if("FPPR" %in% methods){
+    niter_FPPR <- 15
+    nknots_FPPR <- 3
+    
+    model_FPPR <- FPPR(x_train, y_train, x_val, y_val, x_test, y_test, grid = grid, t_range = t_range,  niter = niter_FPPR, nknots = nknots_FPPR)
+    err_trains_FPPR <- model.FPPR$err_train
+    err_tests_FPPR <- model.FPPR$err_test
+    err_vals_FPPR <-  model.FPPR$err_val
+    err_val_FPPR  <- model.FPPR$err_val[model.FPPR$early_stop]
+    err_test_FPPR <- model.FPPR$err_test[model.FPPR$early_stop]
+    Js_FPPR <- model.FPPR$J
+    early_stop_FPPR <- model.FPPR$early_stop
+    FPPR_obj <- list( err_trains_FPPR =  err_trains_FPPR,  err_tests_FPPR =  err_tests_FPPR,
+                      err_vals_FPPR = err_vals_FPPR,  err_val_FPPR = err_val_FPPR, err_test_FPPR = err_test_FPPR,
+                      Js_FPPR =  Js_FPPR ,  early_stop_FPPR =  early_stop_FPPR)
+    dat2return <- c(dat2return, list(FPPR = FPPR_obj))
+    
+  }
+  
+  dat2return$dat <- dat
+  
+  
   return(dat2return)
 }
+

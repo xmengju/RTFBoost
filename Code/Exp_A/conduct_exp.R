@@ -14,21 +14,13 @@ source("Code/utils.R")
 source("Code/Exp_A/fun_exp.R")
 source("Code/Exp_A/dat_gen.R")
 
-
 args <- commandArgs(trailingOnly = TRUE) 
-x_type <- c("mattern") 
-case_id <- 1
-nknot <-3
-g_func_nos <- c(1,7,8,9)
-ds <- c(1,2,3,4)
-SNRs <- c(5)
+nknot <-3; g_func_nos <- 1:5
+ds <- c(1,2,3); SNRs <- c(5)
 shrinkage <- 0.05
-dds <- c("D0","D1","D2")
+types <- c("C0","C1","C2","C3","C4","C5")
+methods <- c("RTFBoost")
 
-if(case_id == 1){
-  niter <- 1000 
-  ncol_num <- 2
-}
 
 if(length(args)== 0){
   g_func_nos <- c(1,7)
