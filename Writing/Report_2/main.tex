@@ -1,0 +1,175 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+%\usepackage{enumerate}
+\usepackage{amsfonts}
+\usepackage{natbib}
+\usepackage{url} % not crucial - just used below for the URL 
+\usepackage{cleveref}
+\usepackage{float}
+\usepackage{subfigure}
+%\usepackage{lineno,hyperref} 
+\usepackage{xcolor}
+
+%\pdfminorversion=4
+% NOTE: To produce blinded version, replace "0" with "1" below.
+\newcommand{\blind}{0}
+\let\oldref\ref
+\renewcommand{\ref}[1]{(\oldref{#1})}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+
+
+\newtheorem{prop}{Proposition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{thm}{Theorem}
+\newtheorem{proof}{Proof}
+
+
+\title{Simulation and Timeline}
+%author{xmengju }
+%\date{March 2021}
+
+\begin{document}
+\maketitle
+
+
+\section{Robust TFBoost: Simulation}
+\subsection{Data generation}
+\begin{itemize}
+    \item We generated data sets $D = \{(x_i, y_i), i = 1,..., N\}$, consisting of a predictor $x_i\in\mathcal{L}_2$ and a scalar response $y_i$ that follow the model: 
+ \begin{equation} \label{eq:gen}
+y_i = r(x_i) + \rho \epsilon_i,
+\end{equation}
+where the errors $\epsilon_i$ are i.i.d, $r$ is the regression function,  and  $\rho > 0$ is a constant that controls the signal-to-noise ratio (SNR): 
+$$\text{SNR} = \frac{\text{Var}(r(X))}{\text{Var}(\rho\epsilon)}.$$
+\item To sample the functional predictors $x_i$, we considered the model:
+
+\begin{equation} \label{eq:xmodel}
+    x_i(t) = \mu(t) + \sum_{p=1}^4 \sqrt{\lambda_j}\xi_{ij}\phi_j(t),
+\end{equation}
+where $\mu(t) = 2\text{sin}(t\pi) \text{exp}(1-t)$, $\lambda_1 = 0.8, \lambda_2 = 0.3, \lambda_3 = 0.2$, and $\lambda_4 = 0.1$,  $\xi_{ij}\sim N(0,1) $,  and $\phi_j$ are the first four eigenfunctions of the ``Mattern'' covariance function $\gamma(s,t)$ with parameters $\rho = 3, \sigma = 1, \nu = 1/3$: 
+ $$\gamma(s,t) = C\left(\frac{\sqrt{2\nu}|s-t|}{\rho}\right), \ C(u) = \frac{\sigma^2 2^{1-\nu}}{\Gamma(\nu)} u^{\nu} K_{\nu}(u),$$
+  where $\Gamma(.)$ is the Gamma function and $K_{\nu}$ is the modified Bessel function of the second kind. For each subject $i$, we evaluate $x_i$ on a dense and regular grid $t_1,..., t_{100}$ equally spaced in $\mathcal{I} = [0,1]$. 
+\item We considered five regression functions:
+\begin{itemize}
+
+\item[- ]  $r_1(X) =  \int_{\mathcal{I}} \left (\text{sin} \left(\frac{3}{2} \pi t \right) +  \text{sin} \left(\frac{1}{2} \pi t \right)\right)X(t)dt,$
+\item[- ]  $r_2(X) = (\xi_1 + \xi_2)^{1/3},$ where  $\xi_1 = \int_{\mathcal{I}} (X(t) - \mu(t))\psi_1(t) dt$ and $\xi_2 = \int_{\mathcal{I}} (X(t) - \mu(t))\psi_2(t) dt$ are projections onto the first two FPCs ($\psi_1$ and $\psi_2$) of $X$ with mean $\mu(t) = E(X(t))$, 
+\item[- ]  $r_3(X) = 5\text{exp}\left (- \frac{1}{2}\left| \int_{\mathcal{I}} x(t)\log(|x(t)|)dt \right| \right),$
+\item[- ] 
+$r_4(X) = 5\text{sigmoid}\left(\int_{\mathcal{I}}X(t)^2 \text{sin}(2\pi t) dt \right),$ where  $\text{sigmoid}(u) = 1/(1+ \text{exp}(-u))$, and
+\item[- ] 
+$r_5(X) = 5 \left( \sqrt{\left|\int_{\mathcal{I}_1} \text{cos}(2\pi t^2) X(t) dt \right|} + \sqrt{\left|\int_{\mathcal{I}_2} \text{sin}(X(t)) dt \right|} \right), $ where  $\mathcal{I}_1 = [0,0.5]$ and $\mathcal{I}_2 = (0.5,1]$. 
+\end{itemize}
+
+\item For clean data ($C_0$), we generated $\epsilon_i$ in \ref{eq:gen} from $N(0,1)$ and selected $\rho$ that corresponds to SNR = 5. 
+
+For contaminated data, we sampled 10\% training samples as outliers and let the set of their indices be $I_{\text{o}}$. The outliers belong to  one of the five types introduced below. For $j \in I_{\text{o}}$, 
+\begin{itemize}
+    \item[- ] $C_1$: \textit{Shape outliers}
+    
+    \vspace{1ex}
+    In \ref{eq:gen}, $\epsilon_j \sim N(10, 0.25)$ \\
+    In \ref{eq:xmodel},   $\xi_{j,2} \sim N(10, 0.25)$ and the other parameters stay the same.  
+       \vspace{1ex}
+    \item[- ] $C_2$: \textit{Magnitude outliers}     \vspace{1ex}
+    
+    $x_{j} = 2 \tilde{x}_{j}, y_{j} =  4 \tilde{y}_{j},$ where $(\tilde{x}_j, \tilde{y}_j)$ were generated as clean data.
+       \vspace{1ex}
+    \item[- ] $C_3$: \textit{Point-type measurement error outliers} 
+    
+       \vspace{1ex}
+   Randomly sample 10  points form $t_1,..., t_{100}$ and denote them as $t_{j,o_1},..., t_{j,o_{10}}$. For $k = 1,..., 10$,   
+    $$x_{j}(t_{j,o_k}) = \tilde{x}_j(t_{j,o_k}) + \eta_{j,o_k},$$ where $\eta_{j,o_k} \sim 0.5 N(10, 0.25) + 0.5 N(-10, 0.25)$, $y_j = \tilde{y}_j$, and 
+ $(\tilde{x}_j, \tilde{y}_j)$ were generated as clean data. 
+    \vspace{1ex}
+    \item[- ] $C_4$: \textit{Interval-type measurement error outliers} 
+    
+       \vspace{1ex}
+     Randomly sample one interval from intervals $[t_1,...,t_{10}]$, ...,$[t_{91},...,t_{100}]$,   and denote the interval as $t_{j,o},..., t_{j,o+9}$
+     
+     For $k = 0,..., 9$,   
+    $$x_{j}(t_{j,o + k}) = \tilde{x}_j(t_{j,o + k}) + \eta_{j,o+k},$$ where $\eta_{j,o + k} \sim  N(10, 0.25)$, $y_j = \tilde{y}_j$, and 
+ $(\tilde{x}_j, \tilde{y}_j)$ were generated as clean data. 
+    \vspace{1ex}
+ 
+    \item[- ] $C_5$: \textit{Pure vertical outliers} 
+       \vspace{1ex}
+   $$\epsilon_{j} \sim N(10, 0.25)$$
+\end{itemize}
+\end{itemize}
+
+
+\subsection{Visualize the outliers}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.8]{visualize_outliers.pdf}
+\end{figure}
+
+\subsection{Model comparison}
+For each setting, we used 100 independently generated datasets and compared the performance of the following methods: 
+
+\begin{itemize}
+ \setlength\itemsep{0.1em}
+\item  \texttt{TFBoost(L2)}:  tree-based functional boosting with L2 loss
+\item  \texttt{TFBoost(LAD)}:  tree-based functional boosting with LAD loss
+\item  \texttt{TFBoost(RR)}:  tree-based functional boosting modified to follow the framework of RRBoost
+\item \texttt{FPPR}: functional projection pursuit regression \citep{ferraty2013functional},
+\item \texttt{FGAM}: functional generalized additive models \citep{mclean2014functional}, 
+\item \texttt{MFLM}: Sieve M-estimator for a semi-functional linear model \cite{huang2015sieve}
+\item \texttt{RFSIR}: robust functional sliced inverse regression \citep{wang2017robust}
+\item \texttt{RFPLM}: robust estimation for semi-functional linear regression models \citep{boente2020robust}
+\end{itemize}
+
+\subsection{Results}
+\input{appendix.tex}
+
+
+\subsection{Timeline}
+\begin{itemize}
+    \item 2021/07: 
+    \begin{itemize}
+        \item  TFBoost: revise paper (submit?)
+        \item Robust TFBoost: simulation 
+        \item  thesis: draft the background chapter 
+    \end{itemize}
+   \item  2021/08:  \begin{itemize}
+   \item  TFBoost: submit paper and package
+        \item   thesis: draft the background,  RRBoost and TFBoost chapters 
+        \item  Robust TFBoost: simulation and real example
+        \item record JSM presentation
+    \end{itemize}
+    \item  2021/09:
+    \begin{itemize}
+    \item thesis: draft Robust TFBoost chapter
+    \item Sparse TFBoost: simulation 
+    \end{itemize}
+   \item  2021/09:
+    \begin{itemize}
+    \item thesis: draft robust TFBoost, Sparse TFBoost chapters 
+    \item Sparse TFBoost: simulation and real example
+    \end{itemize}
+    \item  2021/10:
+    \begin{itemize}
+    \item thesis: draft Sparse TFBoost chapter, conclusion and future work
+    \end{itemize}
+\item  2021/11:
+    \begin{itemize}
+    \item thesis: first draft complete, start revising 
+    \end{itemize}
+\item  2021/12 (end of year):     
+\begin{itemize}
+    \item thesis: second draft 
+    \end{itemize}
+\item Before  2022/04:
+\begin{itemize}
+    \item thesis defence 
+    \end{itemize}
+\end{itemize}
+
+\bibliographystyle{apalike}
+\bibliography{reference}
+\end{document}
