@@ -8,6 +8,7 @@
 \usepackage{url} % not crucial - just used below for the URL 
 \usepackage{cleveref}
 \usepackage{float}
+\usepackage[linesnumbered,ruled]{algorithm2e}
 \usepackage{subfigure}
 %\usepackage{lineno,hyperref} 
 \usepackage{xcolor}
@@ -27,15 +28,151 @@
 \newtheorem{proof}{Proof}
 
 
-\title{Simulation and Timeline}
+\title{Robust Boosting for Functional Regression}
 %author{xmengju }
 %\date{March 2021}
 
 \begin{document}
 \maketitle
 
+\section{Introduction}
+Nowadays, functional data has become more and mode widely available and has applications in a vast number of fields. Practitioners frequently observe data that can be described as functions defined on a domain (of time for instance). This kind of variables is inherently infinite-dimensional but are usually measured discretely.  
 
-\section{Robust TFBoost: Simulation}
+In the context of functional data analysis (FDA), a common problem is to estimate a regression model when the explanatory variable is functional. We assume that $(X_1, Y_1), ..., (X_n, Y_n)$ are independent and identically distributed realizations of the pair $(X, Y)$, where $Y\in \mathbb{R}$ is the response variable and $X \in L^2(\mathcal{I})$ is a square integrable function defined on an interval $\mathcal{I}$, and consider the multi-index model 
+\begin{equation}\label{eq:1}
+	Y = r(\langle X, \alpha_1 \rangle, ...,\langle X, \alpha_p \rangle ) + \epsilon,
+\end{equation}
+where $\langle X, \alpha_j \rangle = \int_{\mathcal{I}} X(t)\alpha_j(t)dt$, $\alpha_j \in L^2(\mathcal{I})$ are projection coefficients, $r: \mathbb{R}^p$ is an unknown smooth function, and $\epsilon$ is independent of $X$. 
+
+ Previously, we found an approximation to $r$ in \ref{eq:1} using \texttt{TFBoost}, which yielded an estimator given by:
+\begin{equation} 
+\hat{r}_1(\langle X, \beta_{1,1} \rangle, ...,\langle X, \beta_{1,K}  \rangle) + ... + \hat{r}_M(\langle X, \beta_{M,1} \rangle, ...,\langle X, \beta_{M,K}  \rangle).
+\end{equation}
+The \texttt{TFBoost} algorithm used a ``functional multi-index trees" to compute each $r_j$, where each tree was constructed with $K$ projections ($\langle X, \beta_{j,1} \rangle, ...,\langle X, \beta_{j,K}  \rangle$) which we refer to as ``indices".  
+
+In principle, \texttt{TFBoost} applies to data without  outliers, which are atypical observations  that deviate from the bulk of the data.  In practical situations, however,  measurements in the response and the functional predictor may either or both contain outlying values. Borrowing the terminology from \cite{rousseeuw1990unmasking} for linear regression, we refer to $(X_i, Y_i)$ as an ``leverage point"  if $X_i$ deviates from the majority of the data. This is only in regard to the outlyingness of $X$ and does not take the response $Y$ into consideration. If a leverage point $(X_i, Y_i)$ deviates greatly from the X-Y plane that  corresponds to the majority of the data, we call it a ``bad leverage point".  If we were to use the true model (the one that describes most data points) to predict $Y_i$, then a bad leverage point will have an extreme residual value.  On the other hand, if a leverage point  $(X_i, Y_i)$ is well represented by the true model, we call it a ``good leverage point".  A point $(X_i, Y_i)$ that is not a leverage point and does not follow the true model is called a ``vertical outlier". 
+
+It is well-known atypical data points can seriously  affect the fit of the regression function. These points are $(X_i, Y_i)$ pairs that follow a model different from the  one that represents the majority of the data, including ``bad leverage points" and ``vertical outliers" depending on the outlyingness of $X_i$.  For functional predictors, the outliers in $X_i$ can exhibit  different properties: some present different shapes than the vast majority of the data and others have extreme values in some part of or across the domain.   The former are usually referred to as ``shape outliers" and the latter as ``magnitude outliers" \citep{hyndman2010rainbow, arribas2014shape, dai2020functional}.
+ 
+
+Methods for functional regression in the presence of outliers have been developed in the past decade. Not many proposals exist and most are focused on linear models with vertical outliers. For the very few papers that considered bad leverage points, they either studied shape outliers or magnitude outliers, but not both. 
+
+
+In what follows, we present a robust \texttt{TFBoost} algorithm for functional regression and assess its performance on data with different contaminations.    In the simulation study, we compare our estimator  with existing proposals on robust functional regression and functional additive regression estimators in a wide range of settings, which   cover cases without outliers and cases with bad leverage shape outliers,  bad leverage magnitude outliers, or vertical outliers. 
+ 
+
+%can be viewed as infinite dimensional and has lead to 
+
+
+%presents challenge to develop methods that takes into account of the functional nature of the  data. 
+
+
+\section{Related work}
+The impact of outliers has been extensively studied in the context of multivariate regression and numerous robust methods have been developed, especially for linear models.  In the functional context, this topic is less explored.  
+
+Consider a general  model for functional regression
+\begin{equation}\label{eq:general}
+Y = 	F(X) + \epsilon, 
+\end{equation}
+where $X \in L^2 (\mathcal{I})$, $Y \in \mathbb{R}$, $\epsilon$ is independent form $X$, and the regression function  $F$: $L^2 (\mathcal{I}) \rightarrow \mathbb{R}$. Traditionally, one defines $F$ as  the conditional mean $E(Y|X)$ which is the minimizer of 
+$$E( (Y - F(X) )^2).$$
+When the training data contain outliers, the conditional mean is  easily affected and thus can produce misleading results. To deal with this problem, one can instead model the conditional median.  The task then becomes to estimate $F$ that minimizes 
+$$E( |Y - F(X)|).$$
+
+A few proposals on functional quantile regression 
+include the estimation of conditional median as a particular case. \cite{cardot2005quantile} and  \cite{kato2012estimation} considered methods that connected the conditional quantile of the response with a linear function of the functional variable. \cite{ferraty2005conditional} and \cite{crambes2008robust}  modelled the conditional quantile in a nonparametric way,  extending the functional Nadaraya-Watson estimator introduced by \cite{ferraty2002functional}.  \cite{chen2012conditional} took an indirect approach by modelling and inverting the  conditional distribution function. More recently, methods to estimate the conditional quantile have been developed for functional local linear regression \citep{kaid2017functional,al2019functional}, functional single index regression \citep{sang2020functional}, support vector machines \citep{crambes2013support}, and partial functional regression \citep{qingguo2017quantile}.  
+
+Some other proposals adopted outlier-resistant loss functions to construct M-type estimators. ......(unfinished......q)
+
+
+\section{Methodology}
+We address here the problem to estimate the regression function $F: X \rightarrow Y$, where the explanatory variable $X \in L^2(\mathcal{I})$ and the response $Y \in \mathbb{R}$. Define the target function 
+$$F = \argmin_{G}L(Y, G(x)),$$
+over joint distribution of $(X,Y)$ where $L$ is a pre-specified loss function, we estimate $F$ by adapting the robust gradient boosting procedure (\texttt{RRBoost}) proposed  by \cite{ju2021robust}. 
+
+The generalization of \texttt{RRBoost} to functional data requires using functional regressors as the base learners. A convenient choice is the type B tree adopted by our previously proposed \texttt{TFBoost}. We recall the two stage estimating procedure of \texttt{RRBoost} below and use type B trees as base learners to approximate the negative gradients in both stages:
+\begin{itemize}
+\item Stage 1:compute an S-type boosting estimator with high robustness but possibly low efficiency;
+\item Stage 2:compute an M-type boosting estimator initialized at the function and scale estimators obtained in Stage 1.	
+\end{itemize}
+We call the resulted estimator \texttt{RTFBoost} and outline the algorithm as follows: 
+
+ \vspace{0.3cm}
+\begin{algorithm}[H]
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+     \SetKwInOut{Initialize}{Initialize}
+      \SetKwInOut{Stagea}{Stage 1}
+     \SetKwInOut{Stageb}{Stage 2}
+    \Input{A data set $(\mathbf{x}_i, y_i),  i \in \mathcal{I}_{\text{train}}$  \\
+       The number of stage 1 iterations $T_1$   \\ 
+       The number of stage 2 iterations $T_2$   \\ 
+    The maximum depth of type B trees $d$ \\
+    The number of random directions of type B trees $P$ \\
+    Basis $\boldsymbol{\psi} = \{\psi_1, ..., \psi_d\}$ \\
+    Shrinkage parameter $\nu$}
+    \Initialize{ $\hat{F}_0(\mathbf{x})$}
+     \Stagea{} 
+    \hspace{1cm}   
+    \For{$t = 1:T_1$}
+     {
+       \hspace{1cm}  $\hat{\sigma}_n (\hat{F}_{t-1}) =  \{\sigma: \frac{1}{| \mathcal{I}_{\text{train}}|}\sum_{i \in \mathcal{I}_{\text{train}}} \rho_0 \left( \frac{y_i - \hat{F}_{t-1}(x_i)}{\sigma}\right) = \kappa\}$ \\
+	 \hspace{1cm}  $C_t =  \left[\sum_{i \in \mathcal{I}_{\text{train}}} \psi_0 \left(\frac{y_i - \hat{F}_{t-1}(x_i)}{\hat{\sigma}_n (\hat{F}_{t-1} )}\right) \left(\frac{y_i - \hat{F}_{t-1}(x_i)}{\hat{\sigma}_n (\hat{F}_{t-1} )}\right)\right]^{-1}$ \\
+       \hspace{1cm}   $g_{t,\ell} = -C_t\psi_0 \left(\frac{y_{\ell}- \hat{F}_{t-1}(x_{\ell})} {\hat{\sigma}_n (\hat{F}_{t-1})} \right)$  \\
+      \hspace{1cm}  Sample $\mathcal{P} = \{\mathbf{p}_1,..., \mathbf{p}_P\}$ \\ 
+        \hspace{1cm}  $h_t = \argmin_{h \in \mathcal{H}}  \sum_{i \in |\mathcal{I}_{\text{train}}|}  \left(g_{t,i} + h\left( \mathbf{p}_1^T\langle x_i \boldsymbol{\psi} \rangle, ..., \mathbf{p}_P^T\langle x_i \boldsymbol{\psi} \rangle \right) \right)^2$ \\
+       \hspace{1cm}   $\alpha_t = \argmin_{\alpha} \hat{\sigma}\left(\hat{F}_{t-1} + \alpha h_t\right)$ \\
+       \hspace{1cm}   $\hat{F}_{t}(x) = \hat{F}_{t-1}(x) +  \alpha_t h_t(x)$  \\
+        }
+      \hspace{1cm}  $\hat{\sigma} =  \hat{\sigma}_n(\hat{F}_{T_1})$ \\
+     \Stageb{}
+     \hspace{1cm}
+     \For{ $t = 1:T_2$}
+     {
+            \hspace{1cm} $g_{t,i} = - \frac{1}{\hat{\sigma}_n }
+	    \psi_1 \left(\frac{y_{i}  - \hat{F}_{T_1 + t-1}(\mathbf{x}_{i})}{\hat{\sigma}_n} \right)$ \\
+	        \hspace{1cm}  Sample $\mathcal{P} = \{\mathbf{p}_1,..., \mathbf{p}_P\}$ \\ 
+                \hspace{1cm}  $h_t = \argmin_{h \in \mathcal{H}}  \sum_{i \in |\mathcal{I}_{\text{train}}|}  \left(g_{t,i} + h\left( \mathbf{p}_1^T\langle x_i \boldsymbol{\psi} \rangle, ..., \mathbf{p}_P^T\langle x_i \boldsymbol{\psi} \rangle \right) \right)^2$ \\
+                  \hspace{1cm}  $\alpha_t = \argmin_{\alpha} \sum_{i \in \mathcal{I}_{\text{train}}} \rho_1 \left( \frac{y_i  - \hat{F}_{T_1 + t-1}(x_i)  - \alpha h_t\left( x_i \right)}{\hat{\sigma}} \right)$ \\
+            \hspace{1cm} $\hat{F}_{T_1 + t}(x) = \hat{F}_{T_1 + t-1}(x) +   \alpha_t h_t(x)$ 
+        }
+      \Output{$\hat{F}_{T_1 + T_2}(x)$} 
+          \caption{RTFBoost algorithm}
+            \label{code-rrboost}
+\end{algorithm}
+
+\subsection{Early stopping}
+Same as for \texttt{RRBoost}, we use an early stopping rule to determine $T_1$ and $T_2$ in Algorithm \ref{code-rrboost} in order to mitigate overfitting. We monitor the validation loss: 
+$$L_{1,\text{val}}(t) = \hat{\sigma}_{\text{val}}(\hat{F}_t),$$
+for stage 1 where $\hat{\sigma}_{\text{val}}$ satisfies 
+ $$\frac{1}{| \mathcal{I}_{\text{val}}|}\sum_{i \in \mathcal{I}_{\text{val}}} \rho_0 \left( \frac{y_i - \hat{F}_{t-1}(x_i)}{\hat{\sigma}_{\text{val}}}\right) = \kappa,$$
+ and
+$$L_{2,\text{val}}(t) = \sum_{i\in \mathcal{I}_{\text{val}}} \rho_1 \left( \frac{y_i  - \hat{F}_{T_1 + t}(x_i)}{\hat{\sigma}}\right)$$
+for stage 2 where 
+$\hat{\sigma} =  \hat{\sigma}_n(\hat{F}_{T_1})$. 
+
+We let $T_{1,\text{max}}$  and $T_{2,\text{max}}$ be the maximum number of iterations allowed in each stage. The early stopping times for stage 1 and stage 2 are defined as 
+$$T_1 = \argmin_{t=1,..., T_{1,\text{max}}} L_{1,\text{val}}(t)$$
+and $$T_2 = \argmin_{t=1,..., T_{2,\text{max}}} L_{2,\text{val}}(t)$$
+respectively. 
+
+\subsection{Initialization}
+Since the loss functions involved in \texttt{RTFBoost} are typically non-convex, a reliable initialization step is required to avoid reaching a local optima with a large objective value.  
+We suggest using a type B tree computed with the L1 loss, which we call ``multi-index LAD tree".  This generalizes \texttt{LADTree} recommended for \texttt{RRBoost} from multivariate variables to a functional variable. 
+
+To fit a  multi-index  LAD tree, we first sample $P$ random directions ${\mathbf{p}_1,..., \mathbf{p}_P}$ that satisfy 
+$\lVert\mathbf{p}_j\rVert = 1$  and $p_{j,1}>0$. Given a basis  $\boldsymbol{\psi} = \{\psi_1, ..., \psi_d\}$, we calculate the candidate indices 
+$\{\mathbf{p}_1^T\langle x_i, \boldsymbol{\psi}\rangle,..., \mathbf{p}_P^T\langle x_i, \boldsymbol{\psi}\rangle \}$. At each node, a multi-idnex LAD tree finds the split that minimizes the average absolute value of the residuals in a step-wise manner. Specifically, let $i \in \mathcal{I}_o$ be all the observations at a node $o$ and $R_1(j,s) = \{i| \mathbf{p}_j^T \langle x_i, \boldsymbol{\psi} \rangle \leq s\}$ and $R_2(j,s) = \{i| \mathbf{p}_j^T \langle x_i, \boldsymbol{\psi} \rangle > s\}$  be the left and right regions of the split made on the $j$-th index, we search for the split by solving
+$$\min_{j\in \{1,...,P\}} \left \{\min_{s} \left(\min_{z_1} \sum_{i \in \{\mathcal{I}_o \cap R_1(j, s)\}} |y_i - z_1| + \sum_{i \in \{\mathcal{I}_o \cap R_2(j, s)\}}|y_i - z_2| \right) \right \}. $$
+This procedure is repeated until the tree reaches the maximum depth ($d_{\text{init}}$) or minimum number of observations per node ($m_{\text{init}}$). 
+
+To select the parameters ($d_{\text{init}}$ and $m_{\text{init}}$) of the initial tree, we first fit \texttt{RTFBoost} using the median of the responses as the initial fit: $$\hat{F}_0(x) = \text{median}( \{y_i| i \in \mathcal{I}_{\text{train}}\}),$$
+and flagged potential outliers ($\mathcal{I}_f$) as those with residuals deviating from their median by more than 3 times their MAD. Then we fit \texttt{RTFBoost} with multi-index LAD tree for  each combination of ($d_{\text{init}}$, $m_{\text{init}}$) under consideration,  and chose the one that performs the best on the validation set, where  the performance is evaluated as the absolute deviation of residuals of non-flagged validation data points: 
+$$\sum_{i \in \mathcal{I}_{\text{val}}/\mathcal{I}_{\text{f}}} \left|y_i - \hat{F}_{T_1 + T_2}(x_i) \right|.$$
+
+
+
+\section{Simulation}
 \subsection{Data generation}
 \begin{itemize}
     \item We generated data sets $D = \{(x_i, y_i), i = 1,..., N\}$, consisting of a predictor $x_i\in\mathcal{L}_2$ and a scalar response $y_i$ that follow the model: 
@@ -66,109 +203,85 @@ $r_5(X) = 5 \left( \sqrt{\left|\int_{\mathcal{I}_1} \text{cos}(2\pi t^2) X(t) dt
 
 \item For clean data ($C_0$), we generated $\epsilon_i$ in \ref{eq:gen} from $N(0,1)$ and selected $\rho$ that corresponds to SNR = 5. 
 
-For contaminated data, we sampled 10\% training samples as outliers and let the set of their indices be $I_{\text{o}}$. The outliers belong to  one of the five types introduced below. For $j \in I_{\text{o}}$, 
+For contaminated data, we sampled 10\% training samples as outliers and let the set of their indices be $\mathcal{O}$. The outliers belong to  one of the five types introduced below. For $j \in \mathcal{O}$, 
+$$y_i = r(x_i) + \eta_i$$
 \begin{itemize}
     \item[- ] $C_1$: \textit{Shape outliers}
     
     \vspace{1ex}
-    In \ref{eq:gen}, $\epsilon_j \sim N(-10, 0.25)$ \\
-    In \ref{eq:xmodel},   $\xi_{j,2} \sim N(10, 0.25)$ and the other parameters stay the same.  
-       \vspace{1ex}
-    \item[- ] $C_2$: \textit{Magnitude outliers}     \vspace{1ex}
+    In \ref{eq:xmodel},   $\xi_{j,2} \sim N(2 0.5)$, $\mu(t) = 1 + 2 \text{cos}(2t\pi)$, and the other parameters are the same as the model for clean data,
+    \vspace{1ex}
+    \item[- ] $C_2$: \textit{Magnitude outliers (curve-type)}     \vspace{1ex}
     
-    $x_{j} = 2 \tilde{x}_{j}, y_{j} =  4 \tilde{y}_{j},$ where $(\tilde{x}_j, \tilde{y}_j)$ were generated as clean data.
+    $x_{j} = 2 \tilde{x}_{j} + 5$, where $\tilde{x}_j$ follows the model for clean data,
        \vspace{1ex}
-    \item[- ] $C_3$: \textit{Point-type measurement error outliers} 
+    \item[- ] $C_3$: \textit{Magnitude outliers (point-type)}
     
        \vspace{1ex}
    Randomly sample 10  points form $t_1,..., t_{100}$ and denote them as $t_{j,o_1},..., t_{j,o_{10}}$. For $k = 1,..., 10$,   
-    $$x_{j}(t_{j,o_k}) = \tilde{x}_j(t_{j,o_k}) + \eta_{j,o_k},$$ where $\eta_{j,o_k} \sim 0.5 N(10, 0.25) + 0.5 N(-10, 0.25)$, $y_j = \tilde{y}_j$, and 
- $(\tilde{x}_j, \tilde{y}_j)$ were generated as clean data. 
+    $$x_{j}(t_{j,o_k}) = \tilde{x}_j(t_{j,o_k}) + \eta_{j,o_k},$$ where $\eta_{j,o_k} \sim 0.5 N(10, 0.25) + 0.5 N(-10, 0.25)$, where
+ $\tilde{x}_j$ follows the model for clean data,
     \vspace{1ex}
-    \item[- ] $C_4$: \textit{Interval-type measurement error outliers} 
+    \item[- ] $C_4$: \textit{Magnitude outliers (interval-type)}
+
     
        \vspace{1ex}
      Randomly sample one interval from intervals $[t_1,...,t_{10}]$, ...,$[t_{91},...,t_{100}]$,   and denote the interval as $t_{j,o},..., t_{j,o+9}$
      
      For $k = 0,..., 9$,   
-    $$x_{j}(t_{j,o + k}) = \tilde{x}_j(t_{j,o + k}) + \eta_{j,o+k},$$ where $\eta_{j,o + k} \sim  N(10, 0.25)$, $y_j = \tilde{y}_j$, and 
- $(\tilde{x}_j, \tilde{y}_j)$ were generated as clean data. 
+    $$x_{j}(t_{j,o + k}) = \tilde{x}_j(t_{j,o + k}) + \eta_{j,o+k},$$ where $\eta_{j,o + k} \sim  N(10, 0.25)$, and 
+ $\tilde{x}_j$ follows the model for clean data
     \vspace{1ex}
  
-    \item[- ] $C_5$: \textit{Pure vertical outliers} 
+    \item[- ] $C_5$: \textit{vertical outliers} 
        \vspace{1ex}
-   $$\epsilon_{j} \sim N(10, 0.25)$$
+   $$ x_j = \tilde{x}_j,$$
+   where $\tilde{x}_j$ follows the model for clean data. 
 \end{itemize}
+For contaminated settings $C_1$,..., $C_5$, we generate $\eta_i$ from $$ 0.5N(10,0.25) + 0.5N(-10,0.25)$$
 \end{itemize}
 
 
-\subsection{Visualize the outliers}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[scale = 0.8]{visualize_outliers.pdf}
-\end{figure}
+%\subsection{Visualize the outliers}
+%\begin{figure}[H]
+%    \centering
+%    \includegraphics[scale = 0.8]{visualize_outliers.pdf}
+%\end{figure}
 
 \subsection{Model comparison}
 For each setting, we used 100 independently generated datasets and compared the performance of the following methods: 
 
 \begin{itemize}
  \setlength\itemsep{0.1em}
-\item  \texttt{TFBoost(L2)}:  tree-based functional boosting with L2 loss
-\item  \texttt{TFBoost(LAD)}:  tree-based functional boosting with LAD loss
-\item  \texttt{TFBoost(RR)}:  tree-based functional boosting modified to follow the framework of RRBoost
 \item \texttt{FPPR}: functional projection pursuit regression \citep{ferraty2013functional},
 \item \texttt{FGAM}: functional generalized additive models \citep{mclean2014functional}, 
-\item \texttt{MFLM}: Sieve M-estimator for a semi-functional linear model \cite{huang2015sieve}
+\item \texttt{MFLM}: Sieve M-estimator for a semi-functional linear model \citep{huang2015sieve},
 \item \texttt{RFSIR}: robust functional sliced inverse regression \citep{wang2017robust}
-\item \texttt{RFPLM}: robust estimation for semi-functional linear regression models \citep{boente2020robust}
+\item \texttt{RFPLM}: robust estimation for semi-functional linear regression models \citep{boente2020robust},
+\item  \texttt{TFBoost(L2)}:  tree-based functional boosting with L2 loss,
+\item  \texttt{TFBoost(LAD)}:  tree-based functional boosting with LAD loss,
+\item  \texttt{RTFBoost}:  proposed robust  tree-based functional boosting. 
 \end{itemize}
 
-\subsection{Results}
-\input{appendix.tex}
+\subsection{Implementation details}
 
-
-\subsection{Timeline}
 \begin{itemize}
-    \item 2021/07: 
-    \begin{itemize}
-        \item  TFBoost: revise paper (submit?)
-        \item Robust TFBoost: simulation 
-        \item  thesis: draft the background chapter 
-    \end{itemize}
-   \item  2021/08:  \begin{itemize}
-   \item  TFBoost: submit paper and package
-        \item   thesis: draft the background,  RRBoost and TFBoost chapters 
-        \item  Robust TFBoost: simulation and real example
-        \item record JSM presentation
-    \end{itemize}
-    \item  2021/09:
-    \begin{itemize}
-    \item thesis: draft Robust TFBoost chapter
-    \item Sparse TFBoost: simulation 
-    \end{itemize}
-   \item  2021/09:
-    \begin{itemize}
-    \item thesis: draft robust TFBoost, Sparse TFBoost chapters 
-    \item Sparse TFBoost: simulation and real example
-    \end{itemize}
-    \item  2021/10:
-    \begin{itemize}
-    \item thesis: draft Sparse TFBoost chapter, conclusion and future work
-    \end{itemize}
-\item  2021/11:
-    \begin{itemize}
-    \item thesis: first draft complete, start revising 
-    \end{itemize}
-\item  2021/12 (end of year):     
-\begin{itemize}
-    \item thesis: second draft 
-    \end{itemize}
-\item Before  2022/04:
-\begin{itemize}
-    \item thesis defence 
-    \end{itemize}
+	\item For \texttt{FPPR}, we implemented the method based on the code to fit a functional single index model shared by  the authors of \cite{ferraty2013functional}. 
+	\item For \texttt{FGAM},  
 \end{itemize}
+
+
+
+
+
+
+\texttt{TFBoost(L2)}  were computed using decision trees of the maximum depth equal to 1, 2, 3, and 4 as base learners
+
+
+
+%\subsection{Results}
+%\input{appendix.tex}
+
 
 \bibliographystyle{apalike}
 \bibliography{reference}
