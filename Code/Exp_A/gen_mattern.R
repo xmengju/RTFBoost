@@ -21,19 +21,21 @@ compute_mattern_eigen <- function(nu, rho, sigma, K){
   mm.svd <- svd(mm)$u
   delta <- diff(x)[1]
   phis <- vector('list', K)
-  for(j in 1:K) phis[[j]] <- approxfun(x, mm.svd[,j]/sqrt(delta))
+  for(j in 1:K){ 
+    phis[[j]] <- approxfun(x, mm.svd[,j]/sqrt(delta))
+  }
   
   return(phis)
 }
 
 
-generate_mattern <- function(xi_matrix, mu, phis, K){
+generate_mattern <- function(mu, phis, K){
   
   # eigenvalues of the covariance function
   lambdas <- c(0.8, 0.3, 0.2, 0.1)
   # eigenfunctions
   
-  fun <- function(tt){
+  fun <- function(xi_matrix, tt){
     xx <- matrix(1,nrow = nrow(xi_matrix), ncol = 1)%*%mu(tt)
     for(j in 1:K){
       xx <- xx + sqrt(lambdas[j]) *as.matrix(xi_matrix[,j])%*%(phis[[j]](tt))
@@ -51,5 +53,6 @@ mu <- function(tt){
 
 phis <- compute_mattern_eigen(nu, rho, sigma, K)
 
-#library(rlist)
-#saveRDS(list(mu = mu, phis = phis), file = "Code/Exp_A/mattern.rds")
+library(rlist)
+saveRDS(list(mu = mu, phis = phis), file = "Code/Exp_A/mattern.rds")
+

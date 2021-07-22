@@ -2,8 +2,8 @@
 #SBATCH --job-name=FAM
 #SBATCH --output=arrayJob_%A_%a.out
 #SBATCH --error=arrayJob_%A_%a.err
-#SBATCH --array=1-144
-#SBATCH --time=13:00:00
+#SBATCH --array=1-200
+#SBATCH --time=23:00:00
 #SBATCH --ntasks=1
 #SBATCH --mem=4G
 #SBATCH --mail-user=xiaomeng.ju@stat.ubc.ca
