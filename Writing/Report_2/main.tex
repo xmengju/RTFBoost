@@ -157,6 +157,7 @@ and $$T_2 = \argmin_{t=1,..., T_{2,\text{max}}} L_{2,\text{val}}(t)$$
 respectively. 
 
 \subsection{Initialization}
+\label{sec:init}
 Since the loss functions involved in \texttt{RTFBoost} are typically non-convex, a reliable initialization step is required to avoid reaching a local optima with a large objective value.  
 We suggest using a type B tree computed with the L1 loss, which we call ``multi-index LAD tree".  This generalizes \texttt{LADTree} recommended for \texttt{RRBoost} from multivariate variables to a functional variable. 
 
@@ -209,7 +210,7 @@ $$y_i = r(x_i) + \eta_i$$
     \item[- ] $C_1$: \textit{Shape outliers}
     
     \vspace{1ex}
-    In \ref{eq:xmodel},   $\xi_{j,2} \sim N(2 0.5)$, $\mu(t) = 1 + 2 \text{cos}(2t\pi)$, and the other parameters are the same as the model for clean data,
+    In \ref{eq:xmodel},   $\xi_{j,2} \sim N(2, 0.25)$, $\mu(t) = 1 + 2\ \text{cos}(2t\pi)$, and the other parameters are the same as the model for clean data,
     \vspace{1ex}
     \item[- ] $C_2$: \textit{Magnitude outliers (curve-type)}     \vspace{1ex}
     
@@ -243,10 +244,39 @@ For contaminated settings $C_1$,..., $C_5$, we generate $\eta_i$ from $$ 0.5N(10
 
 
 %\subsection{Visualize the outliers}
-%\begin{figure}[H]
-%    \centering
-%    \includegraphics[scale = 0.8]{visualize_outliers.pdf}
-%\end{figure}
+
+
+\subsection{Visualization of the outliers}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.7, page = 1]{visualize_outliers.pdf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.7, page = 2]{visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.7, page = 3]{visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.7, page = 4]{visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.7, page = 5]{visualize_outliers.pdf}
+\end{figure}
+
+
 
 \subsection{Model comparison}
 For each setting, we used 100 independently generated datasets and compared the performance of the following methods: 
@@ -260,27 +290,26 @@ For each setting, we used 100 independently generated datasets and compared the 
 \item \texttt{RFPLM}: robust estimation for semi-functional linear regression models \citep{boente2020robust},
 \item  \texttt{TFBoost(L2)}:  tree-based functional boosting with L2 loss,
 \item  \texttt{TFBoost(LAD)}:  tree-based functional boosting with LAD loss,
-\item  \texttt{RTFBoost}:  proposed robust  tree-based functional boosting. 
+\item  \texttt{TFBoost(RR)}:  proposed robust  tree-based functional boosting. 
 \end{itemize}
 
 \subsection{Implementation details}
 
 \begin{itemize}
-	\item For \texttt{FPPR}, we implemented the method based on the code to fit a functional single index model shared by  the authors of \cite{ferraty2013functional}. 
-	\item For \texttt{FGAM},  
+	\item For \texttt{FPPR}, we implemented the method based on the code to fit a functional single index model shared by  the authors of \cite{ferraty2013functional}.  We used cubic B-spline with 7 functions (3 evenly spaced interior knots) as the basis and selected the number of additive components between 1 to 15 to minimize the validation  robust  MSPE, which is defined as
+	$$\text{median}( \{y_i - \hat{F}(x_i)\}|i \in \mathcal{I}_{\text{val}})^2 + \hat{\sigma}_M(  \{y_i - \hat{F}(x_i)\}|i \in \mathcal{I}_{\text{val}}),$$
+	where $\hat{\sigma}_M$ is the M-scale estimator with 0.5 breakdown point and 95\% asymptotic efficiency at the normal model. 
+	\item For \texttt{FGAM},  we adopted the implementation in \texttt{refund} package. We set basis to be bivariate cubic B-splines of dimension 15 by 15 and used REML to select penalization parameter. 
+	\item For \texttt{MFLM} and \texttt{RFPLM}, we adopted the implementation available from \\ https://github.com/msalibian/RobustFPLM. We considered cubic B-spline basis of dimension 4 to 7 with evenly spaced interior knots, and selected the dimension that minimized the BIC. 
+	\item For \texttt{RFSIR}, we used the code shared by the author of \cite{wang2017robust}. We selected the number of leading functional principal components from 1 to 10 to minimize the validation  robust  MSPE. 
+	\item For \texttt{TFBoost(L2)},  \texttt{TFBoost(LAD)}, and  \texttt{RTFBoost}, we used type B trees as base learners. With each training data, we selected the maximum depth of type B tree from 1 to 4 that achieves the lowest validation robust MSPE. To initialize \texttt{RTFBoost}, we considered multi-index LADTree with  maximum depth equal to 1, 2, and 3, and the minimum number of observations per node equal to 10, 20, and 30, and selected their values following the procedure introduced in \Cref{sec:init}. 
 \end{itemize}
 
 
 
-
-
-
-\texttt{TFBoost(L2)}  were computed using decision trees of the maximum depth equal to 1, 2, 3, and 4 as base learners
-
-
-
-%\subsection{Results}
-%\input{appendix.tex}
+\subsection{Simulation results}
+Summary statistics of test MSPEs, displayed in the form of mean (sd)
+\input{appendix.tex}
 
 
 \bibliographystyle{apalike}
