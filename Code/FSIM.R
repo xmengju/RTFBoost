@@ -291,7 +291,7 @@ predict.fsim <- function(model, X.out, Y.out, kernel_type ){
   ker.obj <- ker.reg(as.vector(model$W.in), as.vector(model$Y.in), as.vector(W.out), bw = model$bw.opt, kernel_type =kernel_type )
   hat.Y.out <- ker.obj$hat.y.new
   if(!missing(Y.out))  {
-    err_test<- mse(hat.Y.out, Y.out)
+    err_test<- mean( (hat.Y.out-Y.out)^2)
     return(list(pred = hat.Y.out, err_test = err_test))
   }else{
     return(pred = hat.Y.out)
@@ -299,7 +299,7 @@ predict.fsim <- function(model, X.out, Y.out, kernel_type ){
 }
 
 ## how to store the SIM objects .... 
-FPPR <- function(x_train, y_train, x_val, y_val, x_test, y_test, grid, t_range, niter, nknots = 5:8, make_prediction = TRUE, precision = 6, kernel_type  = "Gaussian")
+FPPR <- function(x_train, y_train, x_val, y_val, x_test, y_test, grid, t_range, niter, nknots = 5:8, make_prediction = TRUE, precision = 6, kernel_type  = "Gaussian", err_type = "mspe")
 {
   
   SIM_objs <- list()
@@ -326,8 +326,14 @@ FPPR <- function(x_train, y_train, x_val, y_val, x_test, y_test, grid, t_range, 
     f_val_t <-  f_val_t + predict.fsim(SIM_list[[i]], x_val, y_val, kernel_type = kernel_type)$pred
     u_train  <- y_train - f_train_t
     # save error and loss 
-    err_train[i] <- mse(f_train_t, y_train)
-    err_val[i] <- mse(f_val_t, y_val)
+    err_train[i] <- mean( (f_train_t-y_train)^2) 
+    if(err_type == "robust"){
+      tmp_err <- f_val_t - y_val
+      err_val[i] <- median(tmp_err)^2 + mscale(tmp_err)^2
+    }else{
+      err_val[i] <- mean( (f_val_t - y_val)^2)
+      
+    }
     
     if(i == 1){
       early_stop <- 1
@@ -368,7 +374,7 @@ FPPR.predict <- function(model, newx, newy){
     
     if(!missing(newy)){
       f_test_t <- f_test_t + predict.fsim(SIM_list[[i]], X.out = newx, Y.out = newy, kernel_type  = kernel_type )$pred
-      err_test[i] <- mse(f_test_t, newy)
+      err_test[i] <- mean((f_test_t - newy)^2) 
     } else{
       f_test_t <- f_test_t + predict.fsim(SIM_list[[i]], X.out = newx, Y.out = newy, kernel_type  = kernel_type )$pred
       

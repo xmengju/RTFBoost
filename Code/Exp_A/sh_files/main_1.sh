@@ -3,9 +3,9 @@
 #SBATCH --output=arrayJob_%A_%a.out
 #SBATCH --error=arrayJob_%A_%a.err
 #SBATCH --array=1-200
-#SBATCH --time=23:00:00
+#SBATCH --time=13:00:00
 #SBATCH --ntasks=1
-#SBATCH --mem=4G
+#SBATCH --mem=8G
 #SBATCH --mail-user=xiaomeng.ju@stat.ubc.ca
 #SBATCH --mail-type=ALL
 #SBATCH --account=rrg-matiass

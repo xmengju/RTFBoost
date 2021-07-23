@@ -87,10 +87,10 @@ library(ggplot2)
 
 make_figure <- function(g_func_no, method_type = "RTFBoost"){
   
-  y_lim <- list(c(0.1,0.3),  c(0.15,0.4),  c(0.25,0.75), 
-                c(0.25,1),  c(0.45,1.2))
+  y_lim <- list(c(0.1,0.4),  c(0.15,1),  c(0.25,1), 
+                c(0.25,1.5),  c(0.45,1.5))
     tmp <- NULL
-    for(type in c("C0", "C1","C2","C3","C4", "C5")){
+    for(type in c("C0","C1","C2","C3","C4","C5")){
       res1 <- summarize1(g_func_no = g_func_no, type = type)
       res1 <- data.frame(res1, rep(type, nrow(res1)))
       colnames(res1) <- c("TFBoost(L2)", "TFBoost(LAD)", "TFBoost(RR)", "type")
@@ -99,7 +99,7 @@ make_figure <- function(g_func_no, method_type = "RTFBoost"){
     dat2plot <- melt(tmp, id.vars = "type", variable.name = "method")
     
     tmp <- NULL
-    for(type in c("C0", "C1","C2","C3","C4", "C5")){
+    for(type in c("C0","C1","C2","C3","C4","C5")){
       res0 <- summarize0(g_func_no = g_func_no, type = type)
       res0 <- data.frame(res0, rep(type, nrow(res0)))
       colnames(res0) <- c( "FPPR","FGAM","RFPLM","MFLM", "RFSIR", "type")
@@ -123,7 +123,7 @@ for(g_func_no in 1:5){
 }
 
 pp[[1]]
-pdf("make_figures.pdf", width = 12, height = 7)
+pdf("make_figures_tmp.pdf", width = 12, height = 7)
 for(i in 1:5){
   print(pp[[i]])
 }

@@ -200,10 +200,11 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   grid0 <- seq(t_range[1],t_range[2], 1/(10*(p-1))) # in case of not evenly spaced
   knot <- quantile(grid0, (1:nknot)/(nknot+1) )
   delta <- sort(c(rep(range(grid0), deg), knot)) #exterior knots
-  B<- spline.des(delta, grid, deg)$design
+  B<- round(spline.des(delta, grid, deg)$design,15)
   B <- compute.orthonormal(B,grid, t_range)
+  
   train_predictors <- t(apply(x_train, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
-  val_predictors <- t(apply(x_val, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
+  val_predictors <-  t(apply(x_val, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t_range)})}))
   
   if(missing(x_test)) {
     make_prediction <- FALSE 
@@ -494,12 +495,11 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
 
   control_tmp <- control
   control_tmp$init_type <- "median"
-  
+  nknot <- control$nknot
   model_best <- RTFBoost(x_train = x_train, z_train = z_train, y_train = y_train,  
                          x_val = x_val, z_val = z_val, y_val = y_val,
                          x_test = x_test, z_test = z_test, y_test = y_test, 
                          grid = grid, t_range  = t_range,  control = control_tmp)
-  
   
   flagger_outlier <- which(abs(model_best$f_val_t - y_val)>3*mad(model_best$f_val_t - y_val))
   
@@ -617,7 +617,7 @@ RTFBoost.validation <- function(x_train, z_train = NULL, y_train,  x_val,  z_val
   
  
   model_best$err_cvs <- errs_val
-  model_best$params = params
-  
+  model_best$params <- params
+  model_best$errs_test <- errs_test
   return(model_best)
 }

@@ -1,6 +1,6 @@
 ## summary code
 robust_mse <- function(x){
-  return( median(x)^2 + mscale(x))
+  return( median(x)^2 + mscale(x)^2)
 }
 
 summarize0 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summarize_type = "pred"){
@@ -31,6 +31,7 @@ summarize1 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summar
   
   res <- NULL
   res_early <- NULL
+  res_d <- NULL
   for(seed in seeds){
     tmp_val <- NULL
     tmp_test <- NULL
@@ -51,11 +52,12 @@ summarize1 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summar
     for(j in 1:3){
       tmp[j] <-tmp_test[idx[j],j]
     }
+    res_d <- rbind(res_d, idx)
     res <- rbind(res, tmp)
     res_early  <- rbind(res_early,  c( tmp_early[idx[3],1], tmp_early[idx[1],2], tmp_early[idx[2],3], tmp_early[idx[3],4]))
   }
   
-  dat2return <- list(res = res, res_early = res_early)
+  dat2return <- list(res = res, res_early = res_early,   res_d  =   res_d )
   colnames(res) <- c("RTFBoost(L2)", "RTFBoost(LAD)", "RTFBoost(RR)")
   if(summarize_type == "pred"){
       return(res)
@@ -89,11 +91,12 @@ summarize1_same_d_median <- function(g_func_no, type, d, SNR = 5, nknot = 3,  se
 }
   
 
-
-d = 1
-
-res <- summarize1_same_d_median(g_func_no = 4, type = "C3", d = d, SNR = 5, nknot = 3,  seeds = 1:20)
+d = 3
+res <- summarize1_same_d_median(g_func_no = 5, type = "C2", d = d, SNR = 5, nknot = 3,  seeds = 1:20)
 boxplot(res$res_test)
+res1 <- res$res_test[,3]
+res2 <- res$res_test[,2]
+boxplot(res1, res2)
 
 res$res_early
 

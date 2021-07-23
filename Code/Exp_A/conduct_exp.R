@@ -90,8 +90,8 @@ if(nrow(all_exps)%%ncol_num!=0){
   conduct_sheet <- matrix(1:nrow(all_exps), ncol = ncol_num, byrow = TRUE)
 }
 
+conduct_sheet <- conduct_sheet[,5:10]
 print(dim(conduct_sheet))
-
 
 conduct.exp <- function(exp_id = 1, conduct_sheet){
   

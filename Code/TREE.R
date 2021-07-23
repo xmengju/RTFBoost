@@ -126,7 +126,7 @@ TREE <-function(x, y, z, newx, newy, newz, random.seed, control = TREE.control()
   if(tree_type == "B"){
     
     set.seed(random.seed)
-    betas <-  t(sample.dir(num_dir, p, num_index = 1, type = "beta"))
+    betas <-t(sample.dir(num_dir, p, num_index = 1, type = "beta"))
     
     if(is.null(z)){
       index <- x %*% betas
@@ -135,7 +135,8 @@ TREE <-function(x, y, z, newx, newy, newz, random.seed, control = TREE.control()
       index <- matrix(index, ncol = num_dir + ncol(z))
       colnames(index) <-  c(paste("X", 1:num_dir, sep = ""), colnames(z))
     }
-    dat <- data.frame(index, y = y)
+    
+    dat <-  round(data.frame(index, y = y),10)
     
     tree.model <- rpart(y~., data = dat, control = rpart.control(maxdepth = d,  cp = 0, minbucket =  minbucket))
     betas <-data.frame(betas)
@@ -283,10 +284,10 @@ tree.loss<- function(param, x, y, z, d, minbucket, num_index, type = "theta") {
 sample.dir <- function(num_sample, p, num_index, type = "beta"){
   
   if(type == "theta"){
-    tmppp <- matrix(runif(num_sample*(p-1)*num_index, 0,pi), nrow = num_sample*num_index)
+    tmppp <-  matrix(runif(num_sample*(p-1)*num_index, 0,pi), nrow = num_sample*num_index)
     tmppp[,1] <- tmppp[,1] - pi/2
   }else{
-    tmp <- matrix(rnorm(num_sample*p*num_index, 0,1), nrow = num_sample*num_index)
+    tmp <-  matrix(rnorm(num_sample*p*num_index, 0,1), nrow = num_sample*num_index)
     tmpp <- apply(tmp, 1, function(x) { sqrt(sum(x^2))})
     tmppp <- apply(tmp, 2, function(x){x/tmpp})
     tmppp[,1] <- abs(tmppp[,1])

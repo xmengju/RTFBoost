@@ -8,7 +8,7 @@ rm(list = ls())
 try_parallel <- function(i, type =  "C2"){
   
 
-  g_func_no <- 5
+  g_func_no <- 4
   library(rpart)
   library(splines)
   library(MyFPLM)
@@ -29,6 +29,7 @@ try_parallel <- function(i, type =  "C2"){
   source("Code/FSIM.R")
   source("Code/RFSIR.R")
   
+  g_func_no = 1; i = 1; type = "C1"
   control <- dat.generate.control(n_train = 400,  n_val = 200, n_test = 1000, g_func_no =   g_func_no, SNR = 5)
   dat <- dat.generate(seed = i, control = control, type = type, direction = "symmetric")
   
@@ -73,7 +74,10 @@ try_parallel <- function(i, type =  "C2"){
   
   
   
-  shrinkage.rr <- 0.05; n_init <- 500
+  shrinkage.rr <- 0.05; 
+  #n_init <- 1500
+  #niter <- 2500
+  n_init <- 500
   niter <- 1000
   control.rr <- RTFBoost.control(make_prediction = TRUE, eff_m= 0.95, bb = 0.5,
                                  tree_control = TREE.control(tree_type  = "B", d = d, num_dir = 200),
@@ -98,22 +102,19 @@ save_data_all <- list()
 for(type in c("C0","C1","C2","C3","C4","C5")){
   cl <- makeCluster(4)
   clusterExport(cl=cl, varlist=c("type", "try_parallel"))
-  system.time(save_data <- parLapply(cl, 1:4, function(x) try_parallel(x,type)))
+  system.time(save_data <- parLapply(cl, 1:10, function(x) try_parallel(x,type)))
   stopCluster(cl)
   save_data_all[[type]] <- save_data
 }
 
-
-
-
 tmp <- save_data_all[["C4"]] 
-tmp <- save_data
 res <- NULL
 
-for(i in 1:4){
+for(i in 1:10){
+  print(c(tmp[[i]]$when_init,tmp[[i]]$early_stop_lad, tmp[[i]]$early_stop_rr))
   res =  rbind(res, c(tmp[[i]]$err_test_FGAM,tail(tmp[[i]]$err_test_l2,1), tail(tmp[[i]]$err_test_lad,1), tail(tmp[[i]]$err_test_rr,1)))
 }
-res
+boxplot(unlist(res[,1]), unlist(res[,2]))
 
 tmp[[i]]$early_stop_rr
 
