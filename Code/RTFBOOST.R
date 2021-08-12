@@ -168,7 +168,7 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
   max_depth_init <- control$max_depth_init
   min_leaf_size_init <- control$min_leaf_size_init
   
-  if(type == "RR"){
+  if(type %in% c( "RR","LAD-M")){
     cc <- control$cc_s
     cc_m <- control$cc_m
     bb <- control$bb
@@ -268,31 +268,20 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
     if(type == "RR" & init_status == 0) {
       ss <- cal.ss.rr(f_train_t, y_train,  cc, bb)
     }
-    
+
     if(trace){
       if(i%%100 ==0 )
       print(paste(i,"th iteration out of", niter, "iterations"))
     }
   
-    u <- as.numeric(cal.neggrad(type, y_train,f_train_t, func.grad, init_status, ss, cc))
+    u <- as.numeric(cal.neggrad(type, y_train, f_train_t, func.grad, init_status, ss, cc))
     tree.obj[[i]] <- TREE(x = train_predictors, y = u, z = z_train, newx = val_predictors, newz = z_val, random.seed = i, control = tree_control)
     h_train_t <-tree.obj[[i]]$pred_train
     h_val_t <- tree.obj[[i]]$pred_test
 
     alpha[i] <- cal.alpha(f_train_t = f_train_t, h_train = h_train_t, y_train = y_train, func = func, type = type,
-                          init_status = init_status, ss = ss, cc = cc)
-    
-    # ress <- NULL
-    # for(alpha.candidate in seq(0,200, 0.5)){
-    #   if(i < n_init){
-    #   ress <- c(ress, RobStatTM::mscale(f_train_t + alpha.candidate*h_train_t- y_train))
-    #   }else{
-    #     ress <- c(ress, mean(func(   (f_train_t + alpha.candidate*h_train_t- y_train)/ss, cc = cc)))
-    #     
-    #   }
-    #   
-    # }
-    # plot(ress~seq(0,200, 0.5), main = alpha[i])
+                          init_status = init_status, ss = ss, bb = bb, cc = cc)
+
     f_train_t <-  f_train_t + shrinkage*alpha[i]*h_train_t
     f_val_t <-  f_val_t + shrinkage*alpha[i]*h_val_t
     #err_train[i] <- mse(f_train_t, y_train)
@@ -308,11 +297,22 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
         loss_train[i] <- mean(func((f_train_t - y_train)/ss, cc = cc_m))
         loss_val[i] <- mean(func((f_val_t - y_val)/ss, cc = cc_m))
       }
-    }else{
+    }
+
+    if(type %in% c("LAD","L2")){
         loss_train[i] <- mean(func(f_train_t - y_train))
         loss_val[i] <- mean(func((f_val_t - y_val)))
     }
-
+    
+   if(type == "LAD-M"){
+     if(init_status == 0){
+       loss_train[i] <- mean(func(f_train_t - y_train))
+       loss_val[i] <- mean(func((f_val_t - y_val)))
+     }else{
+       loss_train[i] <- mean(func((f_train_t - y_train)/ss, cc = cc_m))
+       loss_val[i] <- mean(func((f_val_t - y_val)/ss, cc = cc_m))
+     }
+   }
    if(i == 1){
       when_init <- 1
       early_stop <- 1
@@ -343,6 +343,18 @@ RTFBoost <- function(x_train, z_train = NULL, y_train,  x_val,  z_val = NULL, y_
       cc <- cc_m
       loss_val[i] <- mean(func((f_val_t - y_val)/ss, cc = cc_m))
     }
+    
+    if((type == "LAD-M") && (i == n_init)){
+      init_status <- 1
+      f_train_t <- f_train_early  # reset the current one
+      f_val_t <- f_val_early
+      ss <-  RobStatTM::mscale(f_train_t - y_train,  tuning.chi= cc, delta = bb)
+      cc <- cc_m
+      func <- func.tukey
+      func.grad <- func.tukey.grad
+      loss_val[i] <- mean(func((f_val_t - y_val)/ss, cc = cc_m))
+    }
+    
   }
   
   f_train_t <- f_train_early
@@ -436,7 +448,7 @@ RTFBoost.predict <- function(model, newx, newy, newz = NULL){
   err_test <- data.frame(matrix(NA, nrow = model$early_stop, ncol = length(control$error_type)))
   colnames(err_test) <- control$error_type
   
-  if((control$type == "RR") && (control$n_init < model$early_stop)){
+  if((control$type %in% c("RR", "LAD-M")) && (control$n_init < model$early_stop)){
     for(i in 1: model$when_init){
       if(control$save_f){
         save_f_test[,i] <- f_test_t

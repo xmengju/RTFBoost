@@ -58,6 +58,10 @@ init.boost <- function(type){
           "RR" = {
             func <- func.tukey
             func.grad <- func.tukey.grad
+          },
+          "LAD-M" = {
+            func <- func.lad
+            func.grad <- func.lad.grad
           }
   )
   
@@ -75,7 +79,12 @@ cal.neggrad <- function(type, y_train,f_train_t, func.grad, init_status, ss, cc)
   if(type == "RR" & init_status == 1) {
     neg_grad <- - func.grad((f_train_t - y_train)/ss, cc = cc)/ss
   }
-  
+  if(type == "LAD-M" & init_status == 1) {
+    neg_grad <- - func.grad((f_train_t - y_train)/ss, cc = cc)/ss
+  }
+  if(type == "LAD-M" & init_status == 0) {
+    neg_grad <- -func.grad(f_train_t - y_train)
+  }
   if(type %in% c("L2","LAD")){
    neg_grad <- -func.grad(f_train_t - y_train)
   }
@@ -106,12 +115,12 @@ tmse <- function(trim_prop = NULL, trim_c = NULL, x){
 }
 
 
-cal.alpha <- function(f_train_t, h_train, y_train, func, type, init_status, ss,  cc){
+cal.alpha <- function(f_train_t, h_train, y_train, func, type, init_status, ss, bb, cc){
 
     if(type == "L2"){
         return(1)
     }
-    if(type == "LAD"){
+    if( (type == "LAD") ||  (type == "LAD-M" & init_status == 0) ){
       ff = function(a,r,h){
         return(mean(func(r - a*h)))
       }
@@ -128,8 +137,8 @@ cal.alpha <- function(f_train_t, h_train, y_train, func, type, init_status, ss, 
     }
   
   if(type == "RR" & init_status == 0) {
-    ff3 <- function(a, r, h) return(RobStatTM::mscale(r - a*h))
-    upper_region = c(0.5,10,100,300)
+    ff3 <- function(a, r, h) return(RobStatTM::mscale(r - a*h, delta = bb))
+    upper_region = c(0.5,10,100,300,500)
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
       val = optimize(ff3, lower = -1, upper = upper_region[i], r = y_train - f_train_t, h = h_train)
@@ -151,9 +160,9 @@ cal.alpha <- function(f_train_t, h_train, y_train, func, type, init_status, ss, 
       }
     }
   }
-  if(type == "RR" & init_status == 1) {
+  if( (type == "RR" & init_status == 1) ||(type == "LAD-M" & init_status == 1) ){
     ff4 <- function(a, r, h, c, s) return(mean(func( (r - a*h)/s,  c)))
-    upper_region = c(0.5,10,100,300)
+    upper_region = c(0.5,10,100)
     tmp <- rep(NA, length(upper_region))
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){

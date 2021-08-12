@@ -3,44 +3,6 @@ library(xtable)
 library(RobStatTM)
 library(reshape2)
 library(ggplot2)
-pdf("comparison1.pdf", width = 12, height= 6.1)
-for(g_func_no in 1:5){
-  for(type in c("C0", "C1","C2","C3","C4", "C5")){
-    res1 <- summarize1(g_func_no = g_func_no, type = type)
-    res0 <- summarize0(g_func_no = g_func_no, type = type)
-    boxplot(res1[,1],res1[,2],res1[,3],res0[,1],res0[,2],res0[,3],res0[,4],res0[,5],
-            names = c("TFBoost(L2)","TFBoost(LAD)","TFBoost(RR)",
-                      "FPPR","FGAM","RFPLM", "MFLM","RFSIR"), ylab = "MSPE", main = paste("( r", g_func_no, " , ", type," )", sep = ""))
-  }
-}
-dev.off()
-
-## same method plot different types of outliers 
-method_names <- c("TFBoost(L2)","TFBoost(LAD)","TFBoost(RR)",
-                  "FPPR","FGAM","RFPLM", "MFLM","RFSIR")
-
-y_lim <- list(c(0.1,0.3), c(0.1,0.4), c(0,1), c(0.2,1),c(0.4,1.2))
-pdf("comparison2.pdf", width = 10, height= 6.1)
-
-for(g_func_no in 1:5){
-   for(method_id in 1:8){
-    
-    dat2plot <- NULL
-    for(type in c("C0", "C1","C2","C3","C4", "C5")){
-      if(method_id<=3){
-        res1 <- summarize1(g_func_no = g_func_no, type = type)
-        dat2plot <- c(dat2plot, list(as.numeric(res1[,method_id])))
-      }else{
-        res0 <- summarize0(g_func_no = g_func_no, type = type)
-        dat2plot <- c(dat2plot, list(as.numeric(res0[,method_id - 3])))
-      }
-    }
-    boxplot(dat2plot[[1]],dat2plot[[2]],dat2plot[[3]],dat2plot[[4]],
-            dat2plot[[5]],dat2plot[[6]], names = c("C0", "C1","C2","C3","C4","C5"), ylab = "MSPE",
-            main = paste(method_names[method_id], ": r", g_func_no, sep = ""), ylim = y_lim[[g_func_no]])
-  }
- }
-dev.off()
 
 ### make tables 
 
@@ -91,10 +53,16 @@ make_figure <- function(g_func_no, method_type = "RTFBoost"){
                 c(0.25,1.1),  c(0.45,1.5))
     tmp <- NULL
     for(type in c("C0","C1","C2","C3","C4","C5")){
-      res1 <- summarize1(g_func_no = g_func_no, type = type)
-      res1 <- data.frame(res1, rep(type, nrow(res1)))
-      colnames(res1) <- c("TFBoost(L2)", "TFBoost(LAD)", "TFBoost(RR)", "type")
-      tmp  <- rbind(tmp, res1)
+      res1 <- summarize1(g_func_no = g_func_no, type = type, summarize_type = "all")
+      res1 <- data.frame(res1$res, rep(type, nrow(res1$res)))
+      
+      res2 <- summarize2(g_func_no = g_func_no, type = type, summarize_type = "all")
+      res2 <- data.frame(res2$res, rep(type, nrow(res2$res)))
+ 
+      
+      res3 <- data.frame(cbind(as.numeric(res2$RTFBoost.L2.), as.numeric(res1$RTFBoost.LAD.), as.numeric(res1$RTFBoost.RR.), as.numeric(res2$RTFBoost.RR.2.), as.numeric(res2$RTFBoost.LAD.M.), res2[,5]))
+      colnames(res3) <- c("TFBoost(L2)", "TFBoost(LAD)", "TFBoost(RR.5)", "TFBoost(RR.2)","TFBoost(LAD-M)",  "type")
+      tmp  <- rbind(tmp, res3)
     }
     dat2plot <- melt(tmp, id.vars = "type", variable.name = "method")
     
@@ -105,11 +73,12 @@ make_figure <- function(g_func_no, method_type = "RTFBoost"){
       colnames(res0) <- c( "FPPR","FGAM","RFPLM","MFLM", "RFSIR", "type")
       tmp  <- rbind(tmp, res0)
     }
-    dat2plot <- rbind(dat2plot, melt(tmp, id.vars = "type", variable.name = "method"))
     
-    p =  ggplot(dat2plot, aes(fill=method, y=value)) + 
+    dat2plot <- rbind(dat2plot, melt(tmp, id.vars = "type", variable.name = "method"))
+    dat2plot$value <- as.numeric(dat2plot$value)
+    p <- ggplot(dat2plot, aes(fill=method, y=value)) + 
       geom_boxplot() + ylab("MSPE") + xlab(" ")  + ggtitle(paste("r", g_func_no, sep = ""))+
-      facet_wrap(vars(type),  ncol = 3) + theme(axis.ticks.x=element_blank(),axis.text.x=element_blank(), plot.title = element_text(hjust = 0.5), legend.position="bottom")+  scale_fill_brewer(palette="Spectral")
+      facet_wrap(vars(type),  ncol = 3) + theme(axis.ticks.x=element_blank(),axis.text.x=element_blank(), plot.title = element_text(hjust = 0.5), legend.position="bottom") +  scale_fill_brewer(palette="Spectral")
     
     return(p + ylim(y_lim[[g_func_no]][1],y_lim[[g_func_no]][2]))
 
@@ -123,7 +92,7 @@ for(g_func_no in 1:5){
 }
 
 pp[[1]]
-pdf("make_figures_tmp.pdf", width = 12, height = 7)
+pdf("make_figures_tmp.pdf", width = 12, height = 8)
 for(i in 1:5){
   print(pp[[i]])
 }

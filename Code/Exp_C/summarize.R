@@ -5,7 +5,7 @@ robust_mse <- function(x){
 
 summarize0 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summarize_type = "pred"){
   
-  dir <- paste("Results/Results_0_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
+  dir <- paste("Results_cedar4/Results_0_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
   file_list <- list.files(dir)
   
   res <- NULL
@@ -26,7 +26,7 @@ summarize0 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summar
 
 summarize1 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summarize_type = "pred"){
   
-  dir <- paste("Results/Results_1_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
+  dir <- paste("Results_cedar4/Results_1_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
   file_list <- list.files(dir)
   
   res <- NULL
@@ -57,8 +57,9 @@ summarize1 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summar
     res_early  <- rbind(res_early,  c( tmp_early[idx[3],1], tmp_early[idx[1],2], tmp_early[idx[2],3], tmp_early[idx[3],4]))
   }
   
-  dat2return <- list(res = res, res_early = res_early,   res_d  =   res_d )
   colnames(res) <- c("RTFBoost(L2)", "RTFBoost(LAD)", "RTFBoost(RR)")
+  dat2return <- list(res = res, res_early = res_early,   res_d  =   res_d )
+  
   if(summarize_type == "pred"){
       return(res)
   }else{
@@ -66,6 +67,55 @@ summarize1 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summar
   }
 }
 
+summarize2 <- function(g_func_no, type, SNR = 5, nknot = 3, seeds = 1:20, summarize_type = "pred"){
+  
+  dir <- paste("Results/Results_1_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
+  file_list <- list.files(dir)
+  
+  res <- NULL
+  res_early <- NULL
+  res_d <- NULL
+  for(seed in seeds){
+    tmp_val <- NULL
+    tmp_test <- NULL
+    tmp_early <- NULL
+    for(d in 1:4){
+      file_name <-  paste("g_func_no_", g_func_no, "_case_id_1_d_", d, "_type_", type,"_seed_", seed,".RData",sep = "")
+      if(file_name %in% file_list){
+        load(paste(dir,"/",file_name,sep = ""))
+        tmp_val <- rbind(tmp_val, c(robust_mse(dat2save$RTFBoost$pred_val[[1]]),robust_mse(dat2save$RTFBoost$pred_val[[2]]),
+                                    robust_mse(dat2save$RTFBoost$pred_val[[3]])))
+        tmp_test <- rbind(tmp_test,  c(dat2save$RTFBoost$err_test[1],  dat2save$RTFBoost$err_tests[2,dat2save$RTFBoost$when_init_lad],  
+                                       dat2save$RTFBoost$err_test[2:3]))
+        tmp_early <- rbind(tmp_early, c(dat2save$RTFBoost$when_init_lad,dat2save$RTFBoost$when_init_rr, dat2save$RTFBoost$early_stop))
+      }
+    }
+    
+    idx <- apply(tmp_val, 2, which.min)
+    tmp <- rep(NA, 4)
+    tmp[1] <-tmp_test[idx[1],1]
+    tmp[2] <-tmp_test[idx[2],2]
+    tmp[3] <-tmp_test[idx[2],3]
+    tmp[4] <-tmp_test[idx[3],4]
+
+    res_d <- rbind(res_d, idx)
+    res <- rbind(res, tmp)
+    res_early  <- rbind(res_early,  c( tmp_early[idx[2],1], tmp_early[idx[3],2], tmp_early[idx[1],3], tmp_early[idx[2],4],  tmp_early[idx[3],4]))
+  }
+  
+  colnames(res) <- c("RTFBoost(L2)", "RTFBoost(LAD)", "RTFBoost(LAD-M)", "RTFBoost(RR.2)")
+  colnames(res_early) <- c("RTFBoost(LAD-M)_init", "RTFBoost(RR)_init", "RTFBoost(L2)","RTFBoost(LAD-M)", "RTFBoost(RR.2)")
+  dat2return <- list(res = res, res_early = res_early,   res_d  =   res_d )
+  
+  if(summarize_type == "pred"){
+    return(res)
+  }else{
+    return(dat2return)
+  }
+  
+}
+  
+  
 summarize1_same_d_median <- function(g_func_no, type, d, SNR = 5, nknot = 3,  seeds = 1:20){
   
   dir <- paste("Results/Results_1_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
@@ -93,53 +143,3 @@ summarize1_same_d_median <- function(g_func_no, type, d, SNR = 5, nknot = 3,  se
 }
 
 
-res <- summarize1(g_func_no = 3, type = "C2", SNR = 5, nknot = 3, seeds = 1:20, summarize_type = "pd")
-res$res_d
-boxplot(res$res)
-res$res[,3] <- res_median$res_test[,3]
-
-
-# 
-pdf("test.pdf", width = 15, height= 9)
-y_lim <- list(c(0.1,0.4),  c(0.15,0.4),  c(0.25,0.8), 
-              c(0.25,0.8),  c(0.45,1.3))
-
-for(g_func_no in 1:5){
-  par(mfrow = c(2,3))
-  for(type in paste("C",0:5, sep = "")){
-    
-    res_median_1 <- summarize1_same_d_median(g_func_no = g_func_no, type = type, d = 1, SNR = 5, nknot = 3,  seeds = 1:20)
-    res_median_2 <- summarize1_same_d_median(g_func_no = g_func_no, type = type, d = 2, SNR = 5, nknot = 3,  seeds = 1:20)
-    res_median_3 <- summarize1_same_d_median(g_func_no = g_func_no, type = type, d = 3, SNR = 5, nknot = 3,  seeds = 1:20)
-    
-    boxplot(res_median_1$res_test[,3], res_median_2$res_test[,3],res_median_3$res_test[,3], 
-            res_median_1$res_test[,2], res_median_2$res_test[,2], res_median_3$res_test[,2], 
-            ylim = y_lim[[g_func_no]], names = c("RR(d=1)", "RR(d=2)","RR(d=3)","LAD(d=1)","LAD(d=2)","LAD(d=3)"),
-            main =paste("(r", g_func_no," , ", type, ")", sep = ""))
-  }
-}
-dev.off()
-
-# res1 <- res$res_test[,3]
-# res2 <- res$res_test[,2]
-# boxplot(res1, res2)
-# 
-# res$res_early
-# 
-# boxplot(res$res_test) 
-# 
-# boxplot(res$res_rr) 
-# 
-# g_func_no = 4; type = "C5"; d <- 1; SNR = 5; nknot <- 3; seed <- 6
-# dir <- paste("Results/Results_1_type_", type, "_g_", g_func_no, "_SNR_", SNR,"_nknot", nknot, sep = "")
-# file_name <-  paste("g_func_no_", g_func_no, "_case_id_1_d_", d, "_type_", type,"_seed_", seed,".RData",sep = "")
-# load(paste(dir,"/",file_name,sep = ""))
-# plot(dat2save$RTFBoost$err_vals[3,])
-# plot(dat2save$RTFBoost$err_vals[2,])
-# 
-# 
-# #rr <- summarize1(g_func_no = 2, type= "C3", SNR = 5, nknot = 3, seeds = 1:30, summarize_type = "others")
-#  # rr$res_early
-# ## pre analysis 
-# 
-# save_data[[1]]

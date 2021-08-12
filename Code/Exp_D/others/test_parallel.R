@@ -5,11 +5,9 @@
 
 rm(list = ls())
 
-try_parallel <- function(num_dir, seed,d){
+try_parallel <- function(  g_func_no , seed,d, type){
   
 
-  g_func_no <- 5
-  type =  "C2"
   library(rpart)
   library(splines)
   library(MyFPLM)
@@ -30,7 +28,7 @@ try_parallel <- function(num_dir, seed,d){
   source("Code/FSIM.R")
   source("Code/RFSIR.R")
   
-
+  num_dir <- 200
   control <- dat.generate.control(n_train = 400,  n_val = 200, n_test = 1000, g_func_no =   g_func_no, SNR = 5)
   dat <- dat.generate(seed = seed, control = control, type = type, direction = "symmetric")
   
@@ -54,31 +52,23 @@ try_parallel <- function(num_dir, seed,d){
   model.lad <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
                        x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range,
                        control = control.lad)
-  # shrinkage.l2 <- 0.05
-  # control.l2 <-  RTFBoost.control(make_prediction = TRUE,
-  #                                  tree_control = TREE.control(tree_type  = "B", d = d, num_dir = num_dir),
-  #                                  type = "L2", shrinkage  = shrinkage.l2, precision = precision,
-  #                                  init_type = "mean", niter = niter,
-  #                                  nknot = nknot, save_f = FALSE, trace =  TRUE, save_tree = FALSE, error_type = c("mse"))
-  # 
-  # model.l2 <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
-  #                       x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range,
-  #                       control = control.l2)
-  
-  
   shrinkage.rr <- 0.05;
   n_init <- 500
   niter <- 1000
-  control.rr <- RTFBoost.control(make_prediction = TRUE, eff_m= 0.95, bb = 0.2,
-                                 tree_control = TREE.control(tree_type  = "B", d = d, num_dir = num_dir),
-                                 type = "RR", shrinkage  = shrinkage.rr, precision = precision,
-                                 init_type = "median", n_init = n_init, niter = niter,
-                                 nknot = nknot, save_f = FALSE, trace =  TRUE, save_tree = FALSE, error_type = c("mse"))
   
-  model.rr <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
+  control.rr.2 <-  RTFBoost.control(make_prediction = TRUE, eff_m= 0.95, bb = 0.2,
+                                   tree_control = TREE.control(tree_type  = "B", d = d, num_dir = num_dir),
+                                   type = "RR", shrinkage  = shrinkage.rr, precision = precision,
+                                   init_type = "mean",  n_init = n_init, niter = niter,
+                                   nknot = nknot, save_f = FALSE, trace =  TRUE, save_tree = FALSE, error_type = c("mse"))
+  
+  model.rr.2 <- RTFBoost(x_train = x_train, y_train = y_train, x_val = x_val,  y_val = y_val,
                        x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range,
-                       control = control.rr)
+                       control = control.rr.2)
   
+  
+  
+
   control.rr.5 <- RTFBoost.control(make_prediction = TRUE, eff_m= 0.95, bb = 0.5,
                                  tree_control = TREE.control(tree_type  = "B", d = d, num_dir = num_dir),
                                  type = "RR", shrinkage  = shrinkage.rr, precision = precision,
@@ -89,13 +79,13 @@ try_parallel <- function(num_dir, seed,d){
                        x_test = x_test, y_test = y_test, grid = grid, t_range  = t_range,
                        control = control.rr.5)
   
-  
-return(list(num_dir = num_dir,  err_train_rr.5 = model.rr.5$err_train, loss_train_rr.5 = model.rr.5$loss_train,loss_val_rr.5 = model.rr.5$loss_val,
-            err_test_rr.5 =model.rr.5$err_test, early_stop_rr.5 = model.rr.5$early_stop,
+return(list(num_dir = num_dir,
             err_train_lad = model.lad$err_train, loss_train_lad = model.lad$loss_train,loss_val_lad = model.lad$loss_val,
               err_test_lad =model.lad$err_test, early_stop_lad = model.lad$early_stop,
-              err_train_rr = model.rr$err_train, loss_train_rr = model.rr$loss_train,loss_val_rr = model.rr$loss_val,
-              err_test_rr =model.rr$err_test, early_stop_lad = model.rr$early_stop
+              err_train_rr.2 = model.rr.2$err_train, loss_train_rr.2 = model.rr.2$loss_train,loss_val_rr.2 = model.rr.2$loss_val,
+              err_test_rr.2 =model.rr.2$err_test, 
+            err_train_rr.5 = model.rr.5$err_train, loss_train_rr.5 = model.rr.5$loss_train,loss_val_rr.5 = model.rr.5$loss_val,
+            err_test_rr.5 =model.rr.5$err_test
               ))
 }
 
@@ -103,55 +93,25 @@ return(list(num_dir = num_dir,  err_train_rr.5 = model.rr.5$err_train, loss_trai
 
 library(doParallel)
 
-seed <- 2
+g_func_no <- 1
 save_data_all <- list()
+type
 for(d in 1:4){
   cl <- makeCluster(5)
-  clusterExport(cl=cl, varlist=c("seed", "try_parallel",'d'))
-  system.time(save_data <- parLapply(cl, c(10,20,50,100,200), function(x) try_parallel(x, seed, d)))
+  clusterExport(cl=cl, varlist=c("try_parallel","d", "type", "g_func_no"))
+  system.time(save_data <- parLapply(cl,1:5, function(x) try_parallel(g_func_no,x,d, type)))
   stopCluster(cl)
+  
   save_data_all[[d]] <- save_data
 }
 
 
-res_lad <- NULL
-res_rr <- NULL
-res_rr.5 <- NULL
-for(i in 1:4){
-  save_data <- save_data_all[[i]]
-  plot(save_data[[1]]$err_test_rr.5[,1], ylab = "test MSPE", xlab = "iteration", type = "l", lwd= 3,ylim = c(0,2), main = "TFBoost(L2)")
-  lines(save_data[[2]]$err_test_rr.5[,1], lwd = 3, col = "red")
-  lines(save_data[[3]]$err_test_rr.5[,1],  lwd = 3,col = "green")
-  lines(save_data[[4]]$err_test_rr.5[,1],  lwd = 3,col = "blue")
-  lines(save_data[[5]]$err_test_rr.5[,1],  lwd = 3,col = "pink")
-  res_rr.5 <- rbind(res_rr.5, c(tail(save_data[[1]]$err_test_rr.5[,1][1]),
-                              tail(save_data[[2]]$err_test_rr.5[,1][1]),tail(save_data[[3]]$err_test_rr.5[,1][1]),
-                              tail(save_data[[4]]$err_test_rr.5[,1][1])))
-  
-  
-  plot(save_data[[1]]$err_test_lad[,1], ylab = "test MSPE", xlab = "iteration", type = "l", lwd= 3,ylim = c(0,2), main = "TFBoost(LAD)")
-  lines(save_data[[2]]$err_test_lad[,1], lwd= 3, col = "red")
-  lines(save_data[[3]]$err_test_lad[,1], lwd= 3, col = "green")
-  lines(save_data[[4]]$err_test_lad[,1], lwd= 3,  col = "blue")
-  lines(save_data[[5]]$err_test_lad[,1],  lwd = 3,col = "pink")
-  
-  res_lad <- rbind(res_lad, c(tail(save_data[[1]]$err_test_lad[,1][1]),
-                              tail(save_data[[2]]$err_test_lad[,1][1]),tail(save_data[[3]]$err_test_lad[,1][1]),
-                              tail(save_data[[4]]$err_test_lad[,1][1])))
-  
-  plot(save_data[[1]]$err_test_rr[,1], ylab = "test MSPE", xlab = "iteration", type = "l", lwd= 3,ylim = c(0,2), main = "TFBoost(RR)")
-  lines(save_data[[2]]$err_test_rr[,1],lwd= 3,  col = "red")
-  lines(save_data[[3]]$err_test_rr[,1],lwd= 3, col = "green")
-  lines(save_data[[4]]$err_test_rr[,1], lwd= 3, col = "blue")
-  lines(save_data[[5]]$err_test_rr[,1],  lwd = 3, col = "pink")
-  
-  res_rr <- rbind(res_rr, c(tail(save_data[[1]]$err_test_rr[,1][1]),
-                              tail(save_data[[2]]$err_test_rr[,1][1]),tail(save_data[[3]]$err_test_rr[,1][1]),
-                              tail(save_data[[4]]$err_test_rr[,1][1])))
-  
-
+res <- NULL
+for(i in 1:5){
+  res <- rbind(res, c(tail(save_data[[i]]$err_test_lad,1), tail(save_data[[i]]$err_test_rr.2,1),tail(save_data[[i]]$err_test_rr.5,1)))
 }
 save_data_all_3[[4]]$num_dir
+save_data <- save_data_all[[4]]
 
 par(mfrow = c(1,1))
 plot(save_data[[1]]$err_test_l2[,1],type = "l", lwd= 3,ylim = c(0,2))
