@@ -1,0 +1,363 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{graphicx}
+%\usepackage{enumerate}
+\usepackage{amsfonts}
+\usepackage{natbib}
+\usepackage{url} % not crucial - just used below for the URL 
+\usepackage{cleveref}
+\usepackage{float}
+\usepackage[linesnumbered,ruled]{algorithm2e}
+\usepackage{subfigure}
+%\usepackage{lineno,hyperref} 
+\usepackage{xcolor}
+
+%\pdfminorversion=4
+% NOTE: To produce blinded version, replace "0" with "1" below.
+\newcommand{\blind}{0}
+\let\oldref\ref
+\renewcommand{\ref}[1]{(\oldref{#1})}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+
+
+\newtheorem{prop}{Proposition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{thm}{Theorem}
+\newtheorem{proof}{Proof}
+
+
+\title{Robust Boosting for Functional Regression}
+%author{xmengju }
+%\date{March 2021}
+
+\begin{document}
+\maketitle
+
+\section{Methodology}
+We address here the problem to estimate the regression function $F: X \rightarrow Y$, where the explanatory variable $X \in \mathcal{H}$  ($\mathcal{H}$ is a Hilbert space) and the response $Y \in \mathbb{R}$. Define the target function 
+$$F = \argmin_{G}L(Y, G(x)),$$
+over joint distribution of $(X,Y)$ where $L$ is a pre-specified loss function, we estimate $F$ by adapting the robust gradient boosting procedure (\texttt{RRBoost}) proposed  by \cite{ju2021robust}. 
+
+The generalization of \texttt{RRBoost} to functional data requires using functional regressors as the base learners. A convenient choice is the type B tree adopted by our previously proposed \texttt{TFBoost}. We recall the two stage estimating procedure of \texttt{RRBoost} below and use type B trees as base learners to approximate the negative gradients in both stages:
+\begin{itemize}
+\item Stage 1:compute an S-type boosting estimator with high robustness but possibly low efficiency;
+\item Stage 2:compute an M-type boosting estimator initialized at the function and scale estimators obtained in Stage 1.	
+\end{itemize}
+We call the resulted estimator \texttt{TFBoost(RR)} and outline the algorithm as follows: 
+
+ \vspace{0.3cm}
+\begin{algorithm}[H]
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+     \SetKwInOut{Initialize}{Initialize}
+      \SetKwInOut{Stagea}{Stage 1}
+     \SetKwInOut{Stageb}{Stage 2}
+    \Input{A data set $(\mathbf{x}_i, y_i),  i \in \mathcal{I}_{\text{train}}$  \\
+       The number of stage 1 iterations $T_1$   \\ 
+       The number of stage 2 iterations $T_2$   \\ 
+    The maximum depth of type B trees $d$ \\
+    Breakdown point in the first stage $b$ \\
+    The number of random directions of type B trees $P$ \\
+    Basis $\boldsymbol{\psi} = \{\psi_1, ..., \psi_d\}$ \\
+    Shrinkage parameter $\nu$ }
+    \Initialize{ $\hat{F}_0(\mathbf{x})$}
+     \Stagea{} 
+    \hspace{1cm}   
+    \For{$t = 1:T_1$}
+     {
+       \hspace{1cm}  $\hat{\sigma}_n (\hat{F}_{t-1}) =  \{\sigma: \frac{1}{| \mathcal{I}_{\text{train}}|}\sum_{i \in \mathcal{I}_{\text{train}}} \rho_0 \left( \frac{y_i - \hat{F}_{t-1}(x_i)}{\sigma}\right) = \kappa\}$ \\
+	 \hspace{1cm}  $C_t =  \left[\sum_{i \in \mathcal{I}_{\text{train}}} \psi_0 \left(\frac{y_i - \hat{F}_{t-1}(x_i)}{\hat{\sigma}_n (\hat{F}_{t-1} )}\right) \left(\frac{y_i - \hat{F}_{t-1}(x_i)}{\hat{\sigma}_n (\hat{F}_{t-1} )}\right)\right]^{-1}$ \\
+       \hspace{1cm}   $g_{t,\ell} = -C_t\psi_0 \left(\frac{y_{\ell}- \hat{F}_{t-1}(x_{\ell})} {\hat{\sigma}_n (\hat{F}_{t-1})} \right)$  \\
+      \hspace{1cm}  Sample $\mathcal{P} = \{\mathbf{p}_1,..., \mathbf{p}_P\}$ \\ 
+        \hspace{1cm}  $h_t = \argmin_{h \in \mathcal{H}}  \sum_{i \in |\mathcal{I}_{\text{train}}|}  \left(g_{t,i} + h\left( \mathbf{p}_1^T\langle x_i \boldsymbol{\psi} \rangle, ..., \mathbf{p}_P^T\langle x_i \boldsymbol{\psi} \rangle \right) \right)^2$ \\
+       \hspace{1cm}   $\alpha_t = \argmin_{\alpha} \hat{\sigma}\left(\hat{F}_{t-1} + \alpha h_t\right)$ \\
+       \hspace{1cm}   $\hat{F}_{t}(x) = \hat{F}_{t-1}(x) +  \alpha_t h_t(x)$  \\
+        }
+      \hspace{1cm}  $\hat{\sigma} =  \hat{\sigma}_n(\hat{F}_{T_1})$ \\
+     \Stageb{}
+     \hspace{1cm}
+     \For{ $t = 1:T_2$}
+     {
+            \hspace{1cm} $g_{t,i} = - \frac{1}{\hat{\sigma}_n }
+	    \psi_1 \left(\frac{y_{i}  - \hat{F}_{T_1 + t-1}(\mathbf{x}_{i})}{\hat{\sigma}_n} \right)$ \\
+	        \hspace{1cm}  Sample $\mathcal{P} = \{\mathbf{p}_1,..., \mathbf{p}_P\}$ \\ 
+                \hspace{1cm}  $h_t = \argmin_{h \in \mathcal{H}}  \sum_{i \in |\mathcal{I}_{\text{train}}|}  \left(g_{t,i} + h\left( \mathbf{p}_1^T\langle x_i \boldsymbol{\psi} \rangle, ..., \mathbf{p}_P^T\langle x_i \boldsymbol{\psi} \rangle \right) \right)^2$ \\
+                  \hspace{1cm}  $\alpha_t = \argmin_{\alpha} \sum_{i \in \mathcal{I}_{\text{train}}} \rho_1 \left( \frac{y_i  - \hat{F}_{T_1 + t-1}(x_i)  - \alpha h_t\left( x_i \right)}{\hat{\sigma}} \right)$ \\
+            \hspace{1cm} $\hat{F}_{T_1 + t}(x) = \hat{F}_{T_1 + t-1}(x) +   \alpha_t h_t(x)$ 
+        }
+      \Output{$\hat{F}_{T_1 + T_2}(x)$} 
+          \caption{TFBoost(RR) algorithm}
+            \label{code-rrboost}
+\end{algorithm}
+
+
+\subsection{Initialization}
+\label{sec:init}
+Since the loss functions involved in \texttt{TFBoost(RR)} are typically non-convex, a reliable initialization step is required to avoid reaching a local optima with a large objective value.  Especially when the breakdown point $b$ is large (close to 0.5), some ``good" initial points will have large residuals and be treated as outliers. 
+To avoid this issue, we suggest using a functional multi-index tree computed with the L1 loss, which we call ``multi-index LAD tree".  This generalizes \texttt{LADTree} recommended for \texttt{RRBoost} from a multivariate setting to our functional setting.  To avoid overfitting, we use  a relatively shallow Type A tree which finds the optimal directions that minimizes the L1 prediction error.  Given projection directions $\beta_1,..., \beta_K$, we describe below the procedure to fit a Type A multi-index LAD Tree. 
+
+Let $i \in \mathcal{I}_o$ be all the observations at a node $o$ and $R_1(j,s) = \{i| \langle x_i, \beta_j \rangle \leq s\}$ and $R_2(j,s) = \{i| \langle x_i, \beta_j \rangle > s\}$  be the left and right regions of the split made on the $j$-th index, we find $j$ and $s$ that solves
+$$\min_{j\in \{1,...,P\}} \left \{\min_{s} \left(\sum_{i \in \{\mathcal{I}_o \cap R_1(j, s)\}} |y_i - \text{med}(y_i)| + \sum_{i \in \{\mathcal{I}_o \cap R_2(j, s)\}}|y_i - \text{med}(y_i)| \right) \right \}. $$
+This procedure is repeated until the tree reaches the maximum depth ($d_{\text{init}}$) or minimum number of observations per node ($m_{\text{init}}$).  We denote the resulted tree $h_{\text{init}}(\langle x,\beta_1 \rangle, ...,\langle x,\beta_K \rangle )$. 
+
+
+To fit a  Type A multi-index  LAD tree, we find $\beta_1,..., \beta_K$ that minimizes the L1 loss on the entire tree: 
+
+$$\argmin_{\beta_1,..., \beta_K} \sum_{i=1}^n|y_i - h_{\text{init}}(\langle x_i,\beta_1 \rangle, ...,\langle x_i,\beta_K \rangle)|.$$
+
+%To select the parameters ($d_{\text{init}}$ and $m_{\text{init}}$) of the initial tree, we follow the procedure below. 
+
+
+
+%first fit \texttt{RTFBoost} using the median of the responses as the initial fit: $$\hat{F}_0(x) = \text{median}( \{y_i| i \in \mathcal{I}_{\text{train}}\}),$$
+%and flagged potential outliers ($\mathcal{I}_f$) as those with residuals deviating from their median by more than 3 times their MAD. Then we fit \texttt{RTFBoost} with multi-index LAD tree for  each combination of ($d_{\text{init}}$, $m_{\text{init}}$) under consideration,  and chose the one that performs the best on the validation set, where  the performance is evaluated as the absolute deviation of residuals of non-flagged validation data points: 
+%$$\sum_{i \in \mathcal{I}_{\text{val}}/\mathcal{I}_{\text{f}}} \left|y_i - \hat{F}_{T_1 + T_2}(x_i) \right|.$$
+
+
+\subsection{Early stopping}
+Same as what we did for \texttt{RRBoost}, we use an early stopping rule to determine $T_1$ and $T_2$ in Algorithm \ref{code-rrboost} in order to reduce overfitting. We monitor the validation loss: 
+$$L_{1,\text{val}}(t) = \hat{\sigma}_{\text{val}}(\hat{F}_t),$$
+for stage 1 where $\hat{\sigma}_{\text{val}}$ satisfies 
+ $$\frac{1}{| \mathcal{I}_{\text{val}}|}\sum_{i \in \mathcal{I}_{\text{val}}} \rho_0 \left( \frac{y_i - \hat{F}_{t-1}(x_i)}{\hat{\sigma}_{\text{val}}}\right) = \kappa,$$
+ and
+$$L_{2,\text{val}}(t) = \sum_{i\in \mathcal{I}_{\text{val}}} \rho_1 \left( \frac{y_i  - \hat{F}_{T_1 + t}(x_i)}{\hat{\sigma}}\right)$$
+for stage 2 where 
+$\hat{\sigma} =  \hat{\sigma}_n(\hat{F}_{T_1})$. 
+
+We let $T_{1,\text{max}}$  and $T_{2,\text{max}}$ be the maximum number of iterations allowed in each stage. The early stopping times for stage 1 and stage 2 are defined as 
+$$T_1 = \argmin_{t=1,..., T_{1,\text{max}}} L_{1,\text{val}}(t)$$
+and $$T_2 = \argmin_{t=1,..., T_{2,\text{max}}} L_{2,\text{val}}(t)$$
+respectively. 
+
+
+\section{Simulation}
+\subsection{Data generation}
+\begin{itemize}
+    \item We generated data sets $D = \{(x_i, y_i), i = 1,..., N\}$, consisting of a predictor $x_i\in\mathcal{L}_2$ and a scalar response $y_i$ that follow the model: 
+ \begin{equation} \label{eq:gen}
+y_i = r(x_i) + \rho \epsilon_i,
+\end{equation}
+where the errors $\epsilon_i$ are i.i.d, $r$ is the regression function,  and  $\rho > 0$ is a constant that controls the signal-to-noise ratio (SNR): 
+$$\text{SNR} = \frac{\text{Var}(r(X))}{\text{Var}(\rho\epsilon)}.$$
+\item To sample the functional predictors $x_i$, we considered the model:
+
+\begin{equation} \label{eq:xmodel}
+    x_i(t) = \mu(t) + \sum_{p=1}^4 \sqrt{\lambda_j}\xi_{ij}\phi_j(t),
+\end{equation}
+where $\mu(t) = 2\text{sin}(t\pi) \text{exp}(1-t)$, $\lambda_1 = 0.8, \lambda_2 = 0.3, \lambda_3 = 0.2$, and $\lambda_4 = 0.1$,  $\xi_{ij}\sim N(0,1) $,  and $\phi_j$ are the first four eigenfunctions of the ``Mattern'' covariance function $\gamma(s,t)$ with parameters $\rho = 3, \sigma = 1, \nu = 1/3$: 
+ $$\gamma(s,t) = C\left(\frac{\sqrt{2\nu}|s-t|}{\rho}\right), \ C(u) = \frac{\sigma^2 2^{1-\nu}}{\Gamma(\nu)} u^{\nu} K_{\nu}(u),$$
+  where $\Gamma(.)$ is the Gamma function and $K_{\nu}$ is the modified Bessel function of the second kind. For each subject $i$, we evaluate $x_i$ on a dense and regular grid $t_1,..., t_{100}$ equally spaced in $\mathcal{I} = [0,1]$. 
+\item We considered five regression functions:
+\begin{itemize}
+
+\item[- ]  $r_1(X) =  \int_{\mathcal{I}} \left (\text{sin} \left(\frac{3}{2} \pi t \right) +  \text{sin} \left(\frac{1}{2} \pi t \right)\right)X(t)dt,$
+\item[- ]  $r_2(X) = (\xi_1 + \xi_2)^{1/3},$ where  $\xi_1 = \int_{\mathcal{I}} (X(t) - \mu(t))\psi_1(t) dt$ and $\xi_2 = \int_{\mathcal{I}} (X(t) - \mu(t))\psi_2(t) dt$ are projections onto the first two FPCs ($\psi_1$ and $\psi_2$) of $X$ with mean $\mu(t) = E(X(t))$, 
+\item[- ]  $r_3(X) = 5\text{exp}\left (- \frac{1}{2}\left| \int_{\mathcal{I}} x(t)\log(|x(t)|)dt \right| \right),$
+\item[- ] 
+$r_4(X) = 5\text{sigmoid}\left(\int_{\mathcal{I}}X(t)^2 \text{sin}(2\pi t) dt \right),$ where  $\text{sigmoid}(u) = 1/(1+ \text{exp}(-u))$, and
+\item[- ] 
+$r_5(X) = 5 \left( \sqrt{\left|\int_{\mathcal{I}_1} \text{cos}(2\pi t^2) X(t) dt \right|} + \sqrt{\left|\int_{\mathcal{I}_2} \text{sin}(X(t)) dt \right|} \right), $ where  $\mathcal{I}_1 = [0,0.5]$ and $\mathcal{I}_2 = (0.5,1]$. 
+\end{itemize}
+
+\item For clean data ($C_0$), we generated $\epsilon_i$ in \ref{eq:gen} from $N(0,1)$ and selected $\rho$ that corresponds to SNR = 5. 
+
+For contaminated data, we considered moderate and severe  scenarios and  respectively sampled 10\% or 30\% individuals as outliers. We let the indices of outliers be $\mathcal{O}$.  For $j \in \mathcal{O}$, we considered seven types of outliers $C_1$ to $C_7$ that follow the model 
+$$y_i = r(x_i) + \eta_i,$$
+
+where the predictors of each type of outliers are specified as follows: 
+\begin{itemize}
+    \item[- ] $C_1$ and $C_7$: \textit{Shape outliers (symmetric and asymmetric)}
+    
+    \vspace{1ex}
+    In \ref{eq:xmodel},   $\xi_{j,2} \sim N(2, 0.25)$, $\mu(t) = 1 + 2\ \text{cos}(2t\pi)$, and the other parameters are the same as the model for clean data,
+    \vspace{1ex}
+    \item[- ] $C_2$: \textit{Magnitude outliers (curve-type)}     \vspace{1ex}
+    
+    $x_{j} = 2 \tilde{x}_{j} + 5$, where $\tilde{x}_j$ follows the model for clean data,
+       \vspace{1ex}
+    \item[- ] $C_3$: \textit{Magnitude outliers (point-type)}
+    
+       \vspace{1ex}
+   Randomly sample 10  points form $t_1,..., t_{100}$ and denote them as $t_{j,o_1},..., t_{j,o_{10}}$. For $k = 1,..., 10$,   
+    $$x_{j}(t_{j,o_k}) = \tilde{x}_j(t_{j,o_k}) + \eta_{j,o_k},$$ where $\eta_{j,o_k} \sim 0.5 N(10, 0.25) + 0.5 N(-10, 0.25)$, where
+ $\tilde{x}_j$ follows the model for clean data,
+    \vspace{1ex}
+    \item[- ] $C_4$: \textit{Magnitude outliers (interval-type)}
+\vspace{1ex}
+     Randomly sample one interval from intervals $[t_1,...,t_{10}]$, ...,$[t_{91},...,t_{100}]$,   and denote the interval as $t_{j,o},..., t_{j,o+9}$
+     
+     For $k = 0,..., 9$,   
+    $$x_{j}(t_{j,o + k}) = \tilde{x}_j(t_{j,o + k}) + \eta_{j,o+k},$$ where $\eta_{j,o + k} \sim  N(10, 0.25)$, and 
+ $\tilde{x}_j$ follows the model for clean data
+    \vspace{1ex}
+ 
+    \item[- ] $C_5$ and $C_6$: \textit{vertical outliers (symmetric and asymmetric)} 
+       \vspace{1ex}
+   $$ x_j = \tilde{x}_j,$$
+   where $\tilde{x}_j$ follows the model for clean data. 
+\end{itemize}
+For symmetrically contaminated settings $C_1$,..., $C_5$, we generate $\eta_i$ from $$ 0.5N(30,0.25) + 0.5N(-30,0.25).$$
+For asymmetrically contaminated settings $C_6$ and $C_7$,  we generate $\eta_i$ from $$N(-30,0.25).$$
+We generated data of size 1600, partitioned into a training set of size 400, validation set of size 200, and test set of size 1000. For $C_1$ to $C_7$, we contaminated the  training set and validation set as described above.  The test set always follow $C_0$. 
+\end{itemize}
+
+\subsection{Visualization of the outliers}
+Below we plot the training data for each setting with red curves and pink histograms denoting the functional predictors and scalar response for outliers respectively. For $C_1$ to $C_7$, 10\% of the training samples were selected as outliers. 
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 1]{figs/visualize_outliers.pdf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 2]{figs/visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 3]{figs/visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 4]{figs/visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 5]{figs/visualize_outliers.pdf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 6]{figs/visualize_outliers.pdf}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale = 0.55, page = 7]{figs/visualize_outliers.pdf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering5
+    \includegraphics[scale = 0.55, page = 8]{figs/visualize_outliers.pdf}
+\end{figure}
+
+
+\subsection{Model comparison}
+For each setting, we used 100 independently generated datasets and compared the performance of the following methods: 
+
+\begin{itemize}
+ \setlength\itemsep{0.1em}
+\item \texttt{FPPR}: functional projection pursuit regression \citep{ferraty2013functional},
+\item \texttt{FGAM}: functional generalized additive models \citep{mclean2014functional}, 
+\item \texttt{MFLM}: Sieve M-estimator for a semi-functional linear model \citep{huang2015sieve},
+\item \texttt{RFSIR}: robust functional sliced inverse regression \citep{wang2017robust}
+\item \texttt{RFPLM}: robust estimation for semi-functional linear regression models \citep{boente2020robust},
+\item  \texttt{TFBoost(L2)}:  tree-based functional boosting with L2 loss,
+\item  \texttt{TFBoost(LAD)}:  tree-based functional boosting with LAD loss,
+\item  \texttt{TFBoost(LAD-M)}:  tree-based functional boosting initialized with the robust residual scale estimators and function estimator obtained from \texttt{TFBoost(LAD)} followed by the second stage of \texttt{TFBoost(RR)}, 
+\item  \texttt{TFBoost(RR.2)}:  proposed robust  tree-based functional boosting with $b = 0.2$, 
+\item \texttt{TFBoost(RR.4)}:  proposed robust  tree-based functional boosting with $b = 0.4$, and
+\item \texttt{TFBoost(RR.5)}:  proposed robust  tree-based functional boosting with $b = 0.5$ and initialized with multi-index LAD Tree. 
+\end{itemize}
+
+\subsection{Implementation details} \label{imp}
+
+\begin{itemize}
+	\item For \texttt{FPPR}, we implemented the method based on the code to fit a functional single index model shared by  the authors of \cite{ferraty2013functional}.  We used cubic B-spline with 7 functions (3 evenly spaced interior knots) as the basis and selected the number of additive components between 1 to 15 to minimize the validation  robust  MSPE, which is defined as
+	$$\mu_M( \{y_i - \hat{F}(x_i)\}|i \in \mathcal{I}_{\text{val}})^2 + \hat{\sigma}_M(  \{y_i - \hat{F}(x_i)\}|i \in \mathcal{I}_{\text{val}}),$$
+	where  $\hat{\mu}_M$ and $\hat{\sigma}_M$ are M-location and M-scale estimators specified to achieve 95\% asymptotic efficiency at the normal model. 
+	\item For \texttt{FGAM},  we adopted the implementation in \texttt{refund} package. We set basis to be bivariate cubic B-splines of dimension 15 by 15 and used REML to select penalization parameter. 
+	\item For \texttt{MFLM} and \texttt{RFPLM}, we adopted the implementation available from \\ https://github.com/msalibian/RobustFPLM. We considered cubic B-spline basis of dimension 4 to 7 with evenly spaced interior knots, and selected the dimension that minimized the BIC. 
+	\item For \texttt{RFSIR}, we used the code shared by the author of \cite{wang2017robust}. We selected the number of leading functional principal components from 1 to 10 to minimize the validation  robust  MSPE. 
+	\item For \texttt{TFBoost} methods  we used type B trees as base learners. With each training data, we selected the maximum depth of type B tree from 1 to 4 that achieves the lowest validation robust MSPE. 
+	\item Considering that the first stage of \texttt{TFBoost(RR.5)} uses $b =  0.5$ which tends to treat individuals with large residuals as outliers compared to \texttt{TFBoost(RR)} with smaller $b$ values. 
+	To avoid getting many zero gradients in early iterations and getting trapped in suboptima with poor objective values, we 
+ initialize \texttt{TFBoost(RR.5)} with  Type A multi-index LADTrees. We set the minimum number of observations per node to be 10, fixed the number of indices $K = 1$, and selected the maximum depth of these trees from 0,1,2,3. 	
+	
+To  select the initial tree from 
+    \begin{enumerate}
+        \item[(a)] median of the training responses (depth 0 tree),
+        \item[(b)] Type A tree with depth 1 and index 1,
+        \item[(c)]  Type A tree with depth 2 and index 1, and
+        \item[(d)] Type A tree with depth 3 and index 1,
+    \end{enumerate}
+    we follow the steps below. 
+    \begin{itemize}
+        \item Step 1: Fit \texttt{TFBoost(RR)} with (a) to obtain training and validation residuals $$r_{a,i} = \hat{F}_a(x_i) - y_i,$$
+       and calculate M-scale of residuals (b = 0.5) for the training data and test data:
+        $$M_{a, \text{train}}= \hat{\sigma}(r_{a,i}, i \in \mathcal{I}_{\text{train}})$$
+    $$M_{a, \text{val}}= \hat{\sigma}(r_{a,i}, i \in \mathcal{I}_{\text{val}})$$
+    \item Step 2: Flag outliers in the training data: 
+    Let $\hat{\mu} = \text{median}(r_i, i \in \mathcal{I}_{\text{train}})$ and  $\hat{\sigma} = \text{MAD}(r_i, i \in \mathcal{I}_{\text{train}})$, the outliers are defined as
+    $\mathcal{O}_a = \{i, i \in \mathcal{I}_{\text{train}}, |r_i - \hat{\mu}| > 3\hat{\sigma} \}$. 
+        \item Step 3: Repeat Step 2 for \texttt{TFBoost(RR)} initialized with (b), (c), and (d), and denote the flagged outliers as  $\mathcal{O}_b$, $\mathcal{O}_c$, and $\mathcal{O}_d$ respectively.  Note that $\hat{\mu}$ and $\hat{\sigma}$ are calculated using \texttt{TFBoost(RR)} initialized with (a). 
+        \item Step 4: Among (b), (c), (d), we only consider the ones that  ``fix" some outliers in $\mathcal{O}_a$. For example, (b) will be considered if some points in $\mathcal{O}_a$ are not in $\mathcal{O}_b$. 
+        \item Step 5: For the  methods that passed the criterion in Step 4, we only consider the ones that have a lower validation residual scale compared to (a), and choose among them the one that 
+        achieves the lowest training residual scale. 
+        \item If no method remains after Step 5, we choose (a). 
+    \end{itemize}
+\end{itemize}
+
+
+\subsection{Simulation results}
+Below we report summary statistics of test MSPEs, displayed in the form of mean (sd) with the lowest two average test MPSEs bold-faced for each setting. 
+\hspace{-2cm}
+\renewcommand{\arraystretch}{1.5}
+\addtolength{\tabcolsep}{-3pt} 
+
+\newgeometry{left=1cm,bottom=0.1cm}
+% material for this page
+\subsubsection*{10\% outliers in training and validation sets}
+\input{appendix_prop0.1_100_test.tex}
+
+\subsubsection*{30\% outliers in training and validation sets}
+\input{appendix_prop0.3_100_test.tex}
+
+\restoregeometry
+
+\section{Real example} 
+We analyze the fruit fly data available at https://anson.ucdavis.edu/~mueller/data/data.html. The data set  consists of number of eggs laid daily for each of 1000 medflies  until time of death. We used a subset of the data including flies that lived at least 30 days, to predict the number of living days. The number of eggs laid in the first 30 days is treated as the functional predictor with values evaluated at each day. 
+
+We randomly portioned the data into 60\% training set, 20\% validation set, and 20\% test set.  The description and set-ups of all methods follows the details in \Cref{imp}. Since the test set may contain outliers,  average absolute values (AAD) of the residuals on the test set are used for comparison.  To avoid randomness introduced by a single partition, we considered 100 random partitions. The summary statistics of test robust MSPEs are shown in \Cref{fig:ori}.  To be able to see the differences, the TFBoost methods are plotted separately from the other methods. 
+
+\begin{figure}
+	\includegraphics[scale = 0.5]{figs/Frui_Fly.pdf}
+	\caption{Test AADs from 100 random partitions}
+	\label{fig:ori}
+\end{figure}
+
+
+To further illustrate the performance of our method when data contain more extreme outliers. We considered adding symmetric and asymmetric outliers to the responses in the training and the validation sets. We randomly sample 20\% of the individuals (denoted as $\mathcal{O}$), and let there responses be 
+$$\tilde{y}_{i} = y_i + \eta_i, i \in \mathcal{I}$$ 
+where $y_i$ is the original response, and $\eta_i \ = \text{round}(e_i)$, where $e_i \sim 0.5N(30, 3) + 0.5N(-30, 3)$ for symmetric outliers and $e_i \sim N(30, 3)$ for asymmetric outliers. The robust MSPEs from 100 random partitions of the data are shown below. 
+
+\begin{figure}
+	\includegraphics[scale = 0.5]{figs/Frui_Fly_B.pdf}
+	\caption{Test AADs from 100 random partitions for FruitFly data with symmetric outliers}
+\end{figure}
+
+
+\begin{figure}
+	\includegraphics[scale = 0.5]{figs/Frui_Fly_A.pdf}
+	\caption{Test AADs from 100 random partitions for FruitFly data with asymmetric outliers}
+\end{figure}
+
+
+
+
+%Summary statistics of test MSPEs, displayed in the form of mean (sd). 
+%\texttt{TFBoost(RR.5)} and \texttt{TFBoost(RR.2)} were initialized with the \texttt{LADTrees} with the maximum depth chosen from $\{0,1,2,3\}$ and the minimum number of observations per node chosen from 
+%$\{10,20,30\}$. 
+%
+\bibliographystyle{apalike}
+\bibliography{reference}
+\end{document}
