@@ -5,32 +5,29 @@
 \title{Tuning and control parameters for the functional multi-index tree}
 \usage{
 TREE.control(
-  make_prediction = TRUE,
-  d = 1,
-  minbucket = 2,
-  tree_type = "A",
+  tree.type = "A",
+  tree.nindex = 1,
+  max.depth = 1,
+  num.dir = 20,
+  min.leafsize = 2,
   nmulti = 3,
-  nscreen = 50,
-  num_dir = 20,
-  num_index = 1
+  nscreen = 30
 )
 }
 \arguments{
-\item{make_prediction}{logical indicating whether to make predictions using \code{newx} (defaults to \code{TRUE})}
+\item{tree.type}{a character ("A" or "B") denoting Type A or Type B tree (defaults to "A").}
 
-\item{d}{the maximum depth of the functional multi-index tree (numeric, defaults to 1)}
+\item{tree.nindex}{an integer specifying the number of indices required by a Type A tree (defaults to 1).}
 
-\item{minbucket}{the minimum number of observations per node of the functional multi-index tree (numeric, defaults to 2)}
+\item{max.depth}{an integer specifying the maximum depth for a Type A or Type B tree (defaults to 1).}
 
-\item{tree_type}{type of the functional multi-index tree, 'A' or 'B' (character, defaults to 'A')}
+\item{num.dir}{an integer specifying the number of random directions required by the initial Type B tree (defaults to 20).}
 
-\item{nmulti}{number of random initial points  for performing optimization to fit a type A tree (numeric, defaults to 5)}
+\item{min.leafsize}{an integer specifying the minimum number of observations per leaf node for a Type A or Type B tree (defaults to 2).}
 
-\item{nscreen}{number of random points from which to select the initial points to fit a type A tree (numeric, defaults to 30)}
+\item{nmulti}{an integer specifying  the number of random initialization points to fit a Type A tree (defaults to 3).}
 
-\item{num_dir}{number of random directions sampled at every iteration for type b tree (numeric, defaults to 200)}
-
-\item{num_index}{number of indices for type a tree (numeric, defaults to 1)}
+\item{nscreen}{an integer specifying the number of random points from which to select the initial points to fit a Type A tree (defaults to 30).}
 }
 \value{
 A list of all input parameters

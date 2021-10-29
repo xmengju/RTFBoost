@@ -7,14 +7,14 @@
 TREE.predict(model, newx, newz)
 }
 \arguments{
-\item{model}{an object returned by TREE}
+\item{model}{an object returned by \code{TREE}}
 
-\item{newx}{matrix of the functional predictor's basis projections in the test data (matrix/dataframe)}
+\item{newx}{a matrix or data.frame containing basis projections of the functional predictor in the new data.}
 
-\item{newz}{matrix of the scalar predictors in the test data (matrix/dataframe, required if the model includes scalar predictors)}
+\item{newz}{a matrix or data.frame containing values of the scalar predictors in the new data (optional, defaults to \code{NULL}, required if \code{z} was used to fit \code{model}).}
 }
 \value{
-\item{pred}{predicted values with model using x_test (or x_test and z_test) as the predictors}
+\item{pred}{a vector of predicted values using \code{newx} (or \code{newx} and \code{newz}) as the predictors}
 }
 \description{
 A function to make predictions given an object returned by TREE and test data

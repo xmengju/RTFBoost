@@ -4,40 +4,32 @@
 \alias{TREE}
 \title{Functional multi-index tree}
 \usage{
-TREE(x, y, z, newx, newy, newz, random.seed, control = TREE.control())
+TREE(x, y, z, random.seed, control = TREE.control())
 }
 \arguments{
-\item{x}{matrix of the functional predictor's basis projections in the training data (matrix/dataframe)}
+\item{x}{a matrix or data.frame containing basis projections of the functional predictor in the training data.}
 
-\item{y}{response vector in the training data (vector/dataframe)}
+\item{y}{a vector containing values of the scalar response in the training data (optional, defaults to \code{NULL}).}
 
-\item{z}{matrix of the scalar predictors in the training data (matrix/dataframe)}
+\item{z}{a matrix or data.frame containing values of the scalar predictors in the training data (optional, defaults to \code{NULL}).}
 
-\item{newx}{matrix of the functional predictor's basis projections in the test data (matrix/dataframe, optional)}
-
-\item{newy}{response vector in the test data (matrix/dataframe, optional)}
-
-\item{newz}{matrix of the scalar predictors in the test data (matrix/dataframe, optional)}
-
-\item{random.seed}{a seed that controls the randomness of type B tree (numerical)}
+\item{random.seed}{an integer as the seed to generate random directions for the Type B tree.}
 
 \item{control}{a named list of control parameters, as returned by \code{\link{TREE.control}}}
 }
 \value{
 A list with the following components:
-
-\item{beta_opt}{estimated index coefficients for type A tree, returned if \code{tree_type = "A"}}
-\item{betas_selected}{the selected random directions for type B tree, returned if \code{tree_type = "B"}}
-\item{pred_train}{predicted values with model on the training predictors}
-\item{pred_test}{predicted values with model on the test predictors, returned if \code{make_predictions = TRUE}}
+\item{beta.opt}{a matrix of index coefficients estimated by the Type A tree, returned if \code{control$tree.type = "A"}}
+\item{betas.selected}{a matrix of index coefficients selected  by the Type B tree, returned if \code{control$tree.type = "B"}}
+\item{pred}{a vector of predicted values for the training data}
+\item{tree.model}{an rpart object of the fitted tree}
 \item{control}{\code{control} from the input arguments}
-\item{tree.model}{fitted tree estimator, an rpart object}
 }
 \description{
 This function implements a algorithm for functional multi-index tree.
 }
 \details{
-This function implements a functional multi-index tree algorithm devloped based on functions available in the \code{rpart} package.
+This function implements a functional multi-index tree algorithm developed based on functions available in the \code{rpart} package.
 }
 \author{
 Xiaomeng Ju, \email{xiaomeng.ju@stat.ubc.ca}
