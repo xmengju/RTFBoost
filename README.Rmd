@@ -1,20 +1,19 @@
 ---
-title: "TFBoost: a package for a tree-based functional boosting algorithm"
+title: "RTFBoost: a package for a tree-based functional boosting algorithm"
 author: "Xiaomeng Ju and Matias Salibian Barrera"
 date: "`r format(Sys.Date())`"
 output: github_document
 ---
 
 
-This repository contains `R` code implementing a tree-based boosting algorithm for scalar-on-function regression. The code provides a fit for a multi-index regression model introduced in (add reference)...
-
+This repository contains `R` code implementing a robust tree-based boosting algorithm for scalar-on-function regression. 
 
 ## Install and load package
 
 You can install the development version of the package in R using:
 
 ```{r initial, eval=TRUE, message=FALSE, warning=FALSE}
-devtools::install_github("xmengju/TFBoost", auth_token = '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')
+devtools::install_github("xmengju/RTFBoost", auth_token = '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')
 ```
 
 Once installed you can load the package with:
