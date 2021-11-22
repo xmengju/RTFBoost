@@ -397,6 +397,8 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
   
 
 
+  model$tree.objs <- tree.objs
+  
   
   if(control$make.prediction){
     tmp_predict <- RTFBoost.predict(model, newx = x.test, newy = y.test, newz = z.test, grid = grid, t.range = t.range)
@@ -405,8 +407,8 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
   }
   
   
-  if(control$save.tree){
-    model$tree.objs <- tree.objs
+  if(!control$save.tree){
+    model$tree.objs <- NULL
   }
   
   if(control$save.f){
