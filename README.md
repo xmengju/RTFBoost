@@ -1,4 +1,5 @@
-RTFBoost: a package for a tree-based functional boosting algorithm
+RTFBoost: a package for (robust) tree-based functional boosting
+algorithms
 ================
 Xiaomeng Ju and Matias Salibian Barrera
 2021-11-22
@@ -86,28 +87,69 @@ four options:
     and an M-stage.
 
 These options correspond to setting `control$type = 'L2'`,
-`control$type = LAD`, `control$type = LAD-M`, and `control$type = RR`
-respectively.
+`control$type = 'LAD'`, `control$type = 'LAD-M'`, and
+`control$type = ''RR'` respectively.
 
 We now explain how to fit a `RTFBoost` estimator with different types
 and compare it with the `fgam` estimator proposed in [McLean el
 al. (2014)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3982924/) and
 implemented in the `refund` package.
 
-To specify the tree type, the user needs to set `tree_type = A` or
-`tree_type = B` in `tree_control`. Below, we will fit `RTFBoost` with
-the type B tree, which trains much faster compared to the type A tree.
+The `RTFBoost` functional allows using Type A or Type B trees as the
+base learners. To specify the tree type, the user needs to set
+`tree.type = A` or `tree.type = B` in `control$tree.control`. Below, we
+will fit `RTFBoost` with the type B trees, which train much faster
+compared to the type A trees.
 
 The following are parameters required for our estimator
 
 ``` r
-tree_type  <- "B" # type of the base learner
-num_dir <- 20  # number of random directions for type B tree
+tree.type  <- "B" # type of the base learner
+num.dir <- 20  # number of random directions for type B tree
 gg <- 1:30  # specify the grid the functional predictor was evaluated on
-tt <- c(0,24) # domain of the functional predictor
+tt <- c(0,30) # domain of the functional predictor
 niter <- 1000 # number of boosting iterations 
-make_prediction <- TRUE # make predictions based on test data
-loss <-  "l2" # loss for the boosting algorithm ("l2", "lad", or one specified by user_func)
+make.prediction <- TRUE # make predictions based on test data
 shrinkage <- 0.05 # shrinkage parameter for boosting
 nknot <- 3 # the number of interior knots for cubic B-spline basis
 ```
+
+The depth of the base learners in `RTFBoost` is set with the argument
+`max.depth` in `control$tree.control`. We considered `max.depth` from 1
+to 4, and chose the depth the minimizes the robust MSPE on the
+validation set at early stopping time. Denote validation residuals as
+*r*
+, the robust MSPE is defined as
+
+Below we train `RTFBoost` with `control$type = 'L2'` and select the
+depth `max.depth`. This step may take several minutes to run:
+
+``` r
+type <- "L2"
+tree.depths <- 1:4
+model.list <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
+
+for(dd in 1:length(tree.depths)) {
+   model.list[[dd]] <- 
+   RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
+            x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
+            control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, type = type))
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='mopt', eff=0.95)
+   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+}
+```
+
+    ## Registered S3 method overwritten by 'RobStatTM':
+    ##   method        from      
+    ##   summary.covfm fit.models
+
+``` r
+model.l2 <-  model.list[[which.min(val.errors)]]
+```
+
+Then we repeat the same procedure fitting
+
+For
