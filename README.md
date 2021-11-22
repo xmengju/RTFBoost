@@ -21,7 +21,7 @@ Once installed you can load the package with:
 library(RTFBoost)
 ```
 
-## An example: Fruit fly data
+## An example: fruit fly data
 
 Below we illustrate the use of the package with the fruit fly dataset.
 The original data is provided
@@ -117,12 +117,31 @@ nknot <- 3 # the number of interior knots for cubic B-spline basis
 The depth of the base learners in `RTFBoost` is set with the argument
 `max.depth` in `control$tree.control`. We considered `max.depth` from 1
 to 4, and chose the depth the minimizes the robust MSPE on the
-validation set at early stopping time. Denote validation residuals as
-*r*
+validation set (ℐ<sub>val</sub>) at early stopping time. Denote
+validation residuals as
+*r*<sub>*i*</sub> = *F̂*(*x*<sub>*i*</sub>) − *y*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>
 , the robust MSPE is defined as
 
+$$
+\\begin{aligned}
+ AR(p): Y\_i &= c + \\epsilon\_i + \\phi\_i Y\_{i-1} \\dots \\\\
+ Y\_{i} &= c + \\phi\_i Y\_{i-1} \\dots
+\\end{aligned}
+$$
+
+$$ \\begin{align}
+    \\mu\_M(r) + \\sigma\_M^2(r),
+ \\end{align}
+$$
+
+where *μ*<sub>*M*</sub> is the M-location estimator and
+*σ*<sub>*M*</sub> is the M-scale estimator. We use Tukey’s score
+function and let asymptotic efficiency of *μ*<sub>*M*</sub> and
+*σ*<sub>*M*</sub> be 95%.
+
 Below we train `RTFBoost` with `control$type = 'L2'` and select the
-depth `max.depth`. This step may take several minutes to run:
+depth `max.depth`. The estimator is initialized at the median of all
+training responses.
 
 ``` r
 type <- "L2"
@@ -137,19 +156,60 @@ for(dd in 1:length(tree.depths)) {
             control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
             tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
             shrinkage = shrinkage, nknot = nknot, type = type))
-   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='mopt', eff=0.95)
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
    val.errors[dd] <- tmp$mu^2 + tmp$disper^2
 }
-```
 
-    ## Registered S3 method overwritten by 'RobStatTM':
-    ##   method        from      
-    ##   summary.covfm fit.models
-
-``` r
 model.l2 <-  model.list[[which.min(val.errors)]]
 ```
 
-Then we repeat the same procedure fitting
+A sanity check
+
+``` r
+all.equal(mean((model.l2$f.test - ytest)^2), tail(model.l2$err.test,1))
+```
+
+Then we repeat the same procedure fitting `TFBoost(LAD)` and
+`TFBoost(LAD-M)`.
+
+``` r
+type <- "LAD"
+tree.depths <- 1:4
+model.list <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
+
+for(dd in 1:length(tree.depths)) {
+   model.list[[dd]] <- 
+   RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
+            x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
+            control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, type = type))
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
+   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+}
+
+model.lad <-  model.list[[which.min(val.errors)]]
+```
+
+``` r
+type <- "LAD-M"
+tree.depths <- 1:4
+model.list <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
+
+for(dd in 1:length(tree.depths)) {
+   model.list[[dd]] <- 
+   RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
+            x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
+            control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, type = type))
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
+   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+}
+
+model.lad <-  model.list[[which.min(val.errors)]]
+```
 
 For

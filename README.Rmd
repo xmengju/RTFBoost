@@ -21,7 +21,7 @@ Once installed you can load the package with:
 library(RTFBoost)
 ```
 
-## An example: Fruit fly data
+## An example: fruit fly data
 Below we illustrate the use of the package with the fruit fly dataset. The original data is provided  [here](https://anson.ucdavis.edu/~mueller/data/data.html).  The data set  consists of number of eggs laid daily for each of 1000 medflies  until time of death. We used a subset of the data including flies that lived at least 30 days, to predict the number of living days. The number of eggs laid in the first 30 days is treated as the functional predictor with values evaluated at each day.  
 
 In the data set, `fruitfly$eggs` denotes the predictor, and `fruitfly$lifetime` denotes the response.  We plot the data, highlighting 10 randomly chosen predictor curves in red. We
@@ -89,12 +89,41 @@ nknot <- 3 # the number of interior knots for cubic B-spline basis
 ```
 
 
-The depth of the base learners in `RTFBoost` is set with the argument `max.depth` in `control$tree.control`. We considered `max.depth` from 1 to 4, and chose the depth the minimizes the robust MSPE on the validation set at early stopping time. Denote validation residuals as $$r$$, the robust MSPE is defined as 
+The depth of the base learners in `RTFBoost` is set with the argument `max.depth` in `control$tree.control`. We considered `max.depth` from 1 to 4, and chose the depth the minimizes the robust MSPE on the validation set ($\mathcal{I}_{\text{val}}$) at early stopping time. Denote validation residuals as 
+$$
+\begin{equation}
+r_i = \hat{F}(x_i) - y_i, i \in \mathcal{I}_{\text{val}}
+\end{equation}
+$$, the robust MSPE is defined as 
 
 
-Below we train `RTFBoost` with `control$type = 'L2'` and select the depth `max.depth`.  This step may take several minutes to run:
+\begin{align}
+a_1 &= \beta_0 \\
+b_1 &= \beta_1 \\
+c_1 &= \beta_2 \\
+d_1 &= \beta_3
+\end{align}
 
-```{r train_tfboost}
+
+$$
+\begin{aligned}
+ AR(p): Y_i &= c + \epsilon_i + \phi_i Y_{i-1} \dots \\
+ Y_{i} &= c + \phi_i Y_{i-1} \dots
+\end{aligned}
+$$
+
+$$ \begin{align}
+    \mu_M(r) + \sigma_M^2(r),
+ \end{align}
+$$
+
+
+where $\mu_M$ is the M-location estimator and $\sigma_M$ is the M-scale estimator. We use Tukey's score function and let asymptotic efficiency of  $\mu_M$ and $\sigma_M$ be 95%. 
+
+
+Below we train `RTFBoost` with `control$type = 'L2'` and select the depth `max.depth`. The estimator is initialized at the median of all training responses. 
+
+```{r train_tfboostl2, message=FALSE, eval = FALSE}
 type <- "L2"
 tree.depths <- 1:4
 model.list <- vector('list', length(tree.depths))
@@ -107,16 +136,61 @@ for(dd in 1:length(tree.depths)) {
             control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
             tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
             shrinkage = shrinkage, nknot = nknot, type = type))
-   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='mopt', eff=0.95)
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
    val.errors[dd] <- tmp$mu^2 + tmp$disper^2
 }
 
 model.l2 <-  model.list[[which.min(val.errors)]]
+
 ```
-Then we repeat the same procedure fitting 
+
+A sanity check
+```{r final_check,  eval = FALSE}
+all.equal(mean((model.l2$f.test - ytest)^2), tail(model.l2$err.test,1))
+```
 
 
+Then we repeat the same procedure fitting `TFBoost(LAD)` and `TFBoost(LAD-M)`. 
+```{r train_tfboostlad,  eval = FALSE}
+type <- "LAD"
+tree.depths <- 1:4
+model.list <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
 
+for(dd in 1:length(tree.depths)) {
+   model.list[[dd]] <- 
+   RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
+            x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
+            control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, type = type))
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
+   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+}
+
+model.lad <-  model.list[[which.min(val.errors)]]
+
+```
+
+```{r train_tfboostladm, eval = FALSE}
+type <- "LAD-M"
+tree.depths <- 1:4
+model.list <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
+
+for(dd in 1:length(tree.depths)) {
+   model.list[[dd]] <- 
+   RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
+            x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
+            control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, type = type))
+   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
+   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+}
+
+model.lad <-  model.list[[which.min(val.errors)]]
+```
 
 For 
 
