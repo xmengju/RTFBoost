@@ -12,7 +12,7 @@ This repository contains `R` code implementing a robust tree-based boosting algo
 
 You can install the development version of the package in R using:
 
-```{r initial, eval=FALSE, message=FALSE, warning=FALSE}
+```{r initial, eval= TRUE, message=FALSE, warning=FALSE}
 devtools::install_github("xmengju/RTFBoost", auth_token ='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')
 ```
 
@@ -45,7 +45,7 @@ observations for each of these three sets:
 
 ``` {r sampleindex}
 n0 <- floor( 0.2 * n) 
-set.seed(123)
+set.seed(1)
 idx_test <- sample(n, n0)
 idx_train <- sample((1:n)[-idx_test], floor( 0.6 * n ) )
 idx_val <- (1:n)[ -c(idx_test, idx_train) ] 
@@ -79,13 +79,15 @@ The `RTFBoost` functional allows using Type A or Type B trees as the base learne
 The following are parameters required for our estimator 
 ```{r params}
 tree.type  <- "B" # type of the base learner
-num.dir <- 20  # number of random directions for type B tree
+num.dir <- 200  # number of random directions for type B tree
 gg <- 1:30  # specify the grid the functional predictor was evaluated on
-tt <- c(0,30) # domain of the functional predictor
-niter <- 1000 # number of boosting iterations 
+tt <- c(0,30) # domain of the functional predictorn
+n.init <- 5
+niter <- 10 # number of boosting iterations 
 make.prediction <- TRUE # make predictions based on test data
 shrinkage <- 0.05 # shrinkage parameter for boosting
 nknot <- 3 # the number of interior knots for cubic B-spline basis
+init.type <- "median" # intialize with the median of the training responses
 ```
 
 
@@ -94,105 +96,202 @@ $$
 \begin{equation}
 r_i = \hat{F}(x_i) - y_i, i \in \mathcal{I}_{\text{val}}
 \end{equation}
-$$, the robust MSPE is defined as 
+$$, the robust MSPE is defined as $$\hat{\mu}_M( \{r_i, i \in \mathcal{I}_{\text{val}}\}) + \hat{\sigma}_M^2( \{r_i, i \in \mathcal{I}_{\text{val}}\}), $$
+where $\mu_M$ is the M-location estimator and $\sigma_M$ is the M-scale estimator. We use Tukey's score function and let asymptotic efficiency of  $\mu_M$ and $\sigma_M$ be 95%. Below is the function to compute robust MSPE: 
 
-
-\begin{align}
-a_1 &= \beta_0 \\
-b_1 &= \beta_1 \\
-c_1 &= \beta_2 \\
-d_1 &= \beta_3
-\end{align}
-
-
-$$
-\begin{aligned}
- AR(p): Y_i &= c + \epsilon_i + \phi_i Y_{i-1} \dots \\
- Y_{i} &= c + \phi_i Y_{i-1} \dots
-\end{aligned}
-$$
-
-$$ \begin{align}
-    \mu_M(r) + \sigma_M^2(r),
- \end{align}
-$$
-
-
-where $\mu_M$ is the M-location estimator and $\sigma_M$ is the M-scale estimator. We use Tukey's score function and let asymptotic efficiency of  $\mu_M$ and $\sigma_M$ be 95%. 
-
+```{r rmspe, message=FALSE}
+cal.rmspe <- function(r){
+  tmp <-  RobStatTM::locScaleM(x=r, psi='bisquare', eff= 0.95)
+  return( val.errors[dd] <- tmp$mu^2 + tmp$disper^2)
+}
+```
 
 Below we train `RTFBoost` with `control$type = 'L2'` and select the depth `max.depth`. The estimator is initialized at the median of all training responses. 
 
-```{r train_tfboostl2, message=FALSE, eval = FALSE}
+```{r train_tfboostl2, message=FALSE}
 type <- "L2"
-tree.depths <- 1:4
-model.list <- vector('list', length(tree.depths))
+tree.depths <- 1:3
+model.list.l2 <- vector('list', length(tree.depths))
 val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
 
 for(dd in 1:length(tree.depths)) {
-   model.list[[dd]] <- 
+   model.list.l2[[dd]] <- 
    RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
             x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
             control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
             tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
-            shrinkage = shrinkage, nknot = nknot, type = type))
-   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
-   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+            shrinkage = shrinkage, nknot = nknot, type = type, init.type = init.type))
+   val.errors[dd] <- cal.rmspe(model.list.l2[[dd]]$f.val - yval)
 }
 
-model.l2 <-  model.list[[which.min(val.errors)]]
+model.l2 <-  model.list.l2[[which.min(val.errors)]]
 
 ```
 
 A sanity check
-```{r final_check,  eval = FALSE}
+```{r final_check}
 all.equal(mean((model.l2$f.test - ytest)^2), tail(model.l2$err.test,1))
 ```
 
 
 Then we repeat the same procedure fitting `TFBoost(LAD)` and `TFBoost(LAD-M)`. 
-```{r train_tfboostlad,  eval = FALSE}
+```{r train_tfboostlad}
 type <- "LAD"
-tree.depths <- 1:4
-model.list <- vector('list', length(tree.depths))
+tree.depths <- 1:3
+model.list.lad <- vector('list', length(tree.depths))
 val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
 
 for(dd in 1:length(tree.depths)) {
-   model.list[[dd]] <- 
+   model.list.lad[[dd]] <- 
    RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
             x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
             control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
             tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
-            shrinkage = shrinkage, nknot = nknot, type = type))
-   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
-   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+            shrinkage = shrinkage, nknot = nknot, type = type, init.type = init.type))
+   val.errors[dd] <- cal.rmspe(model.list.lad[[dd]]$f.val - yval)
 }
 
-model.lad <-  model.list[[which.min(val.errors)]]
+model.lad <-  model.list.lad[[which.min(val.errors)]]
 
 ```
 
-```{r train_tfboostladm, eval = FALSE}
+```{r train_tfboostladm}
 type <- "LAD-M"
-tree.depths <- 1:4
-model.list <- vector('list', length(tree.depths))
+#n.init <- 500  # maximum number of iterations in the LAD-stage
+#niter <- 1000  # maximum number of iterations in the M-stage
+tree.depths <- 1:3
+model.list.ladm <- vector('list', length(tree.depths))
 val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
 
 for(dd in 1:length(tree.depths)) {
-   model.list[[dd]] <- 
+   model.list.ladm[[dd]] <- 
    RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
             x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
-            control = RTFBoost.control(make.prediction = make.prediction, niter = niter,                  
+            control = RTFBoost.control(make.prediction = make.prediction, niter = niter, n.init = n.init,                
             tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
-            shrinkage = shrinkage, nknot = nknot, type = type))
-   tmp <-  RobStatTM::locScaleM(x=model.list[[dd]]$f.val - yval, psi='bisquare', eff=0.95)
-   val.errors[dd] <- tmp$mu^2 + tmp$disper^2
+            shrinkage = shrinkage, nknot = nknot, type = type, init.type = init.type))
+   val.errors[dd] <- cal.rmspe(model.list.ladm[[dd]]$f.val - yval)
+
 }
 
-model.lad <-  model.list[[which.min(val.errors)]]
+model.ladm <-  model.list.ladm[[which.min(val.errors)]]
 ```
 
-For 
+For `RTFBoost(RR)` we controlled the level of robustness of the S-stage by setting `bb  = 0.5` in the S-stage, corresponding to a M-local estimator achieving 50% breakdown point.  To initialize `RTFBoost(RR)`, we used a single-index Type A LAD tree.  We set the minimum number of observations per node of the initial tree is  to  10 and selected  the maximum depth of the tree from 0, 1, 2, and 3 to minimize the robust MSPE on the validation set. An initial  tree with depth 0 corresponds to initializing `RTFBoost(RR)` with the median of all training responses. This step may take several minutes to run. 
+
+```{r train_tfboostrr}
+#n.init <- 200  # maximum number of iterations in the S-stage
+#niter <- 1000  # maximum number of iterations in the M-stage
+type <- "RR"
+tree.depths <- 1:3
+model.list.rr <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
+
+for(dd in 1:length(tree.depths)) {
+   model.list.rr[[dd]] <- 
+    RTFBoost.validation(x.train = xtrain,  y.train = ytrain,  x.val = xval,  y.val =  yval, x.test = xtest,  y.test = ytest, grid = grid, t.range = t.range, 
+                                max.depth.init.set = c(1,2,3), min.leafsize.init.set = c(10), control = RTFBoost.control(make.prediction = make.prediction, niter = niter, n.init = n.init,                
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, type = type, init.type = "LADTree"), save.all = TRUE)
+   val.errors[dd]  <- cal.rmspe(model.list.rr[[dd]]$f.val - yval)
+
+}
+
+model.rr <-  model.list.rr[[which.min(val.errors)]]$model.best
+params <- model.list.rr[[which.min(val.errors)]]$params
+print(params)
+```
+
+`RTFBoost(RR)` initialized with the median of training responses. 
+```{r train_tfboostrr.median}
+#n.init <- 200  # maximum number of iterations in the S-stage
+#niter <- 1000  # maximum number of iterations in the M-stage
+type <- "RR"
+tree.depths <- 1:3
+model.list.rrm <- vector('list', length(tree.depths))
+val.errors <- rep(NA, length(tree.depths))  # vector of validation robust MSPE
+
+for(dd in 1:length(tree.depths)) {
+   model.list.rrm[[dd]] <- 
+    RTFBoost(x.train = xtrain,  y.train = ytrain,  x.val = xval,  y.val =  yval, x.test = xtest,  y.test = ytest, grid = grid, t.range = t.range, 
+                                control = RTFBoost.control(type = type, make.prediction = make.prediction, niter = niter, n.init = n.init,                
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
+            shrinkage = shrinkage, nknot = nknot, init.type = "median"))
+   val.errors[dd] <- cal.rmspe(model.list.rrm[[dd]]$f.val - yval)
+}
+
+model.rr.m <-  model.list.rrm[[which.min(val.errors)]]
+```
+
+We fit `fgam` which  estimates the regression function using tensor-product B-splines with roughness penalties.  We set the marginal basis to be cubic B-splines of dimension 15 and used REML to select the parameter that penalizes the second order marginal differences. 
+
+```{r train_fgam, warning = FALSE}
+library(refund)
+nbasis_FGAM <- 15
+xx <- xtrain
+yy <- ytrain
+model.fgam <- fgam(yy ~ af(xx, splinepars = list(k=c(nbasis_FGAM,nbasis_FGAM), 
+                                                 m = list(c(2,2),c(2,2)))), 
+                   method ="REML")
+```   
+
+We compare test errors of different estimators:
+```{r compare2}
+err.l2 <-mean((model.l2$f.test- ytest)^2 )
+err.lad <-mean( (model.lad$f.test- ytest)^2 )
+err.ladm <-mean( (model.ladm$f.test- ytest)^2 )
+err.rr <-mean( (model.rr$f.test- ytest)^2 )
+err.rr.m <-mean( (model.rr.m$f.test- ytest)^2 )
+err.fgam <-  mean( (predict(model.fgam,
+                               newdata=list(xx =xtest),
+                               type='response') - ytest)^2 )
+print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
+
+err.l2 <-cal.rmspe((model.l2$f.test- ytest))
+err.lad <-cal.rmspe( (model.lad$f.test- ytest))
+err.ladm <-cal.rmspe( (model.ladm$f.test- ytest))
+err.rr <-cal.rmspe( (model.rr$f.test- ytest))
+err.rr.m <-cal.rmspe( (model.rr.m$f.test- ytest))
+
+err.fgam <-  cal.rmspe( (predict(model.fgam,
+                               newdata=list(xx =xtest),
+                               type='response') - ytest))
+
+print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
+```
+
+For `RTFBoost`, we can also separate the process of training
+the predictor and evaluating it on a test set. In this way we have 
+the flexibility to compute predictions on multiple test sets when needed. In this case the user
+needs to use `save.tree = TRUE` in the argument `control`. This option includes 
+the tree objects at all iterations in the returned object, which are needed for calculating 
+predictions. The following code illustrates this procedure running  `TFBoost(L2)` with `max.depth = 1`:
+
+```{r seperate}
+max.depth <- 1
+type <- "L2"
+model.l2.separate <-   RTFBoost(x.train = xtrain, y.train = ytrain,  x.val = xval,  y.val = yval,
+            x.test = xtest, y.test = ytest, grid = gg, t.range  = tt, 
+            control = RTFBoost.control(make.prediction = TRUE, niter = niter,                  
+            tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = max.depth),
+            shrinkage = shrinkage, nknot = nknot, type = type, init.type = "median", save.tree = TRUE))
+predictions <- RTFBoost.predict(model.l2.separate, newx = xtest, grid = grid, t.range = t.range)
+```
+
+A sanity check
+```{r final.check}
+all.equal(mean((predictions$f.new - ytest)^2), tail(model.l2.separate$err.test, 1))
+all.equal(mean((model.l2.separate$f.test - ytest)^2), tail(model.l2.separate$err.test, 1))
+```
+
+
+
+
+
+
+
+
+
 
 
 

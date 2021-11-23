@@ -522,8 +522,9 @@ RTFBoost.predict <- function(model, newx, newz = NULL, newy = NULL, grid, t.rang
   
   if(!missing(newy)){
     res <- c(res, list(err.new = err.new))
-    return(res)
   }
+  return(res)
+  
 }
 
 # transform a basis matrix to an orthonormal basis matrix

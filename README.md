@@ -121,18 +121,7 @@ validation set (ℐ<sub>val</sub>) at early stopping time. Denote
 validation residuals as
 *r*<sub>*i*</sub> = *F̂*(*x*<sub>*i*</sub>) − *y*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>
 , the robust MSPE is defined as
-
-$$
-\\begin{aligned}
- AR(p): Y\_i &= c + \\epsilon\_i + \\phi\_i Y\_{i-1} \\dots \\\\
- Y\_{i} &= c + \\phi\_i Y\_{i-1} \\dots
-\\end{aligned}
-$$
-
-$$ \\begin{align}
-    \\mu\_M(r) + \\sigma\_M^2(r),
- \\end{align}
-$$
+*μ̂*<sub>*M*</sub>(**r**) + *σ̂*<sub>*M*</sub><sup>2</sup>(**r**)
 
 where *μ*<sub>*M*</sub> is the M-location estimator and
 *σ*<sub>*M*</sub> is the M-scale estimator. We use Tukey’s score
