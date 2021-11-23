@@ -193,7 +193,7 @@ for(dd in 1:length(tree.depths)) {
                                 max.depth.init.set = c(1,2,3), min.leafsize.init.set = c(10), control = RTFBoost.control(make.prediction = make.prediction, niter = niter, n.init = n.init,                
             tree.control =  TREE.control(tree.type = tree.type, num.dir = num.dir, max.depth = dd),
             shrinkage = shrinkage, nknot = nknot, type = type, init.type = "LADTree"), save.all = TRUE)
-   val.errors[dd]  <- cal.rmspe(model.list.rr[[dd]]$f.val - yval)
+   val.errors[dd]  <- cal.rmspe(model.list.rr[[dd]]$model.best$f.val - yval)
 
 }
 

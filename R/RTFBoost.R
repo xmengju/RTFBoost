@@ -580,6 +580,7 @@ compute.orthonormal <- function(B, grid, t_range){
 #' \item{pred.list.val}{a list of predicted values for the validation data at the early stopping time  (returned if \code{save.all = TRUE}, one column per combination)}
 #' \item{pred.list.test}{a list of predicted values for the test data at the early stopping time  (returned if \code{save.all = TRUE} and \code{make.prediction = TRUE} in \code{control}, one element per combination)}
 #'
+#'@export
 
 
 RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val = NULL, y.val, x.test, z.test = NULL, y.test, grid, t.range, 
