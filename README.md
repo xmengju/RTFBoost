@@ -2,7 +2,7 @@ RTFBoost: a package for (robust) tree-based functional boosting
 algorithms
 ================
 Xiaomeng Ju and Matias Salibian Barrera
-2021-11-23
+2021-11-27
 
 This repository contains `R` code implementing a robust tree-based
 boosting algorithm for scalar-on-function regression.
@@ -16,7 +16,7 @@ devtools::install_github("xmengju/RTFBoost", auth_token ='ghp_tgHAaR6vO0WMtZeX62
 ```
 
     ## 
-    ##      checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpbqcZV3/remotes1f814ac12e18/xmengju-RTFBoost-29b6a797c8ae906cc066c714926aad4215e58c13/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpbqcZV3/remotes1f814ac12e18/xmengju-RTFBoost-29b6a797c8ae906cc066c714926aad4215e58c13/DESCRIPTION’
+    ##      checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpLDlF5x/remotes63b9522b91e6/xmengju-RTFBoost-94f57220d2f09228564b3ccc67d56a4dc339e101/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpLDlF5x/remotes63b9522b91e6/xmengju-RTFBoost-94f57220d2f09228564b3ccc67d56a4dc339e101/DESCRIPTION’
     ##   ─  preparing ‘RTFBoost’:
     ##      checking DESCRIPTION meta-information ...  ✓  checking DESCRIPTION meta-information
     ##   ─  checking for LF line-endings in source and make files and shell scripts
@@ -326,7 +326,7 @@ err.fgam <-  mean( (predict(model.fgam,
 print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
 ```
 
-    ## [1] 150.3275 146.3308 147.3556 146.5420 146.5420 152.9956
+    ## [1] 150.3275 146.3308 145.6103 146.5420 146.5420 152.9956
 
 ``` r
 err.l2 <-cal.rmspe(model.l2$f.test- ytest)
@@ -342,7 +342,7 @@ err.fgam <-  cal.rmspe( (predict(model.fgam,
 print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
 ```
 
-    ## [1] 114.59009  96.90441  96.75248  88.19130  88.19130 125.81592
+    ## [1] 114.59009  96.90441  97.00620  88.19130  88.19130 125.81592
 
 For `RTFBoost`, we can also separate the process of training the
 predictor and evaluating it on a test set. In this way we have the
