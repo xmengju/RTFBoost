@@ -194,7 +194,6 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     control$make.prediction <- FALSE 
   } 
   
-  tree.objs <- list()
   alpha <- rep(NA, niter)
   
   loss.train <- loss.val <- rep(NA, niter)
@@ -254,6 +253,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     
   init.status <- 0; ss <- 1;  bb <- control$bb
   
+  model <- list(tree.objs = list())
   # initial cc 
   if(control$type == "RR"){
     cc <- cc.s
@@ -279,11 +279,11 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     }
 
     u <- as.numeric(cal.neggrad(control$type, y.train, f.train, func.grad, init.status, ss, cc))
-    
-    tree.objs[[i]] <- TREE(x = train.predictors, y = u, z = z.train, random.seed = i, control = control$tree.control)
-    
-    h.train <- tree.objs[[i]]$pred
-    h.val <- TREE.predict(tree.objs[[i]], newx = val.predictors, newz = z.val)
+    model$tree.objs[[i]] <- TREE(x = train.predictors, y = u, z = z.train, random.seed = i, control = control$tree.control)
+    model$tree.objs[[i]]$tree.model <- lean_rpart.fn(tree_fitted = model$tree.objs[[i]]$tree.model)
+
+    h.train <- model$tree.objs[[i]]$pred
+    h.val <- TREE.predict(model$tree.objs[[i]], newx = val.predictors, newz = z.val)
 
     alpha[i] <- cal.alpha(f.train, h.train, y.train, func, control$type, init.status, ss, bb, cc)
       
@@ -387,15 +387,13 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
   f.train <- f.train.early
   f.val <- f.val.early
   
-  model <- list(loss.train=loss.train, loss.val = loss.val, f.train =  f.train, f.val = f.val, early.stop = early.stop, err.train = err.train, 
-                 err.val = err.val, init.vals = init.vals,  alpha = alpha, control = control)
 
+  model <- c(model, list(loss.train=loss.train, loss.val = loss.val, f.train =  f.train, f.val = f.val, early.stop = early.stop, err.train = err.train, 
+                 err.val = err.val, init.vals = init.vals,  alpha = alpha, control = control))
   
   if(control$type %in% c("LAD-M","RR")){
     model$early.stop.s1 <- when.init
   }
-  
-  model$tree.objs <- tree.objs
   
   if(control$make.prediction){
     tmp_predict <- RTFBoost.predict(model, newx = x.test, newy = y.test, newz = z.test, grid = grid, t.range = t.range)
@@ -403,11 +401,11 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     model$err.test <- tmp_predict$err.new
   }
   
-  
+
   if(!control$save.tree){
     model$tree.objs <- NULL
   }
-  
+
   if(control$save.f){
     model <- c(model, list(save.f.train = save.f.train, save.f.val = save.f.val))
   }
@@ -717,7 +715,7 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
     }
     print(j_tmp)  # all the selected initial trees 
     
-    
+  
     for(j in 1:nrow(combs)) {
       
       print(j)

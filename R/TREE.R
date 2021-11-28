@@ -46,6 +46,13 @@ TREE.control <- function(tree.type = "A",  tree.nindex = 1, max.depth = 1, num.d
 #' 
 #' @export
 
+lean_rpart.fn <- function(tree_fitted){
+  tree_fitted$where <- NULL
+  tree_fitted$y <- NULL
+  return(tree_fitted)
+}
+
+
 TREE <-function(x, y, z, random.seed, control = TREE.control()) {
   
   
