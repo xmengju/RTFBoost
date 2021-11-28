@@ -492,7 +492,7 @@ RTFBoost.predict <- function(model, newx, newz = NULL, newy = NULL, grid, t.rang
     }
   
     if(control$type %in% c("RR","LAD-M")){
-      if( (i <= model$when_init) | (i >=  (control$n_init+1))){
+      if( (i <= model$early.stop.s1) | (i >=  (control$n.init+1))){
         f.new <- f.new + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.objs[[i]], newx =  new.predictors, newz = newz)
         if(!missing(newy)){
           err.new[i] <- switch(control$error.type,
@@ -628,7 +628,7 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
   flagger_outlier <- which(abs(model_best$f.val - y.val)>3*mad(model_best$f.val - y.val))
   
   if(length(flagger_outlier)>=1){
-    best_err <- mean(abs(model_best$f.val[-flagger_outlier] - y.val[-flagger_outlier]))  #test with tau-scale
+    best_err <- mean(abs(model_best$f.val[-flagger_outlier] - y.val[-flagger_outlier]))  
   }else{
     best_err <- mean(abs(model_best$f.val - y.val))
   }
@@ -703,17 +703,18 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
       }
     }
     
-    for(k in 1:length(min.leafsize.init.set)){
-      for(j in 1:(length(max.depth.init.set)-1)){
-        idx_kj <- which(combs[,1] == sort(min.leafsize.init.set, TRUE)[k] & combs[,2] == max.depth.init.set[j])
-        idx_kj_plus<- which(combs[,1] == sort(min.leafsize.init.set, TRUE)[k] & combs[,2] == max.depth.init.set[j+1])
-        equal_tmp<- all.equal(tree_init_list[[idx_kj]]$tree.model,tree_init_list[[idx_kj_plus]]$tree.model) == TRUE
-        if(length(equal_tmp)==2 & sum(equal_tmp) == 0){
-          j_tmp[idx_kj_plus] <- 0
+    if(length(max.depth.init.set) > 1){
+      for(k in 1:length(min.leafsize.init.set)){
+        for(j in 1:(length(max.depth.init.set)-1)){
+          idx_kj <- which(combs[,1] == sort(min.leafsize.init.set, TRUE)[k] & combs[,2] == max.depth.init.set[j])
+          idx_kj_plus<- which(combs[,1] == sort(min.leafsize.init.set, TRUE)[k] & combs[,2] == max.depth.init.set[j+1])
+          equal_tmp<- all.equal(tree_init_list[[idx_kj]]$tree.model,tree_init_list[[idx_kj_plus]]$tree.model) == TRUE
+          if(length(equal_tmp)==2 & sum(equal_tmp) == 0){
+            j_tmp[idx_kj_plus] <- 0
+          }
         }
       }
     }
-    
     print(j_tmp)  # all the selected initial trees 
     
     
@@ -728,6 +729,7 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
         control.tmp$init.type <- "LADTree"
         control.tmp$init.tree.params$max.depth <- max_depths
         control.tmp$init.tree.params$min.leafsize  <- min_leaf_size
+        
         
         model_tmp <- RTFBoost(x.train = x.train, y.train = y.train,  x.val = x.val,  y.val = y.val,
                               x.test = x.test, y.test = y.test, grid = grid, t.range  = t.range,

@@ -56,14 +56,14 @@ TREE <-function(x, y, z, random.seed, control = TREE.control()) {
   
   p <- ncol(x)
 
-  tree.nindex <- control$tree.nindex
+  tree.nindex <- control$tree.nindex # number of indices, required for type A tree 
   
   if(control$tree.type == "A"){
     
     fval.min <- Inf
     set.seed(random.seed)
     optim.fn <-  function(param){tree.loss(param, x, y, z, d = control$max.depth,  minbucket = control$min.leafsize, control$tree.nindex, type = "theta")}
-    start_save <- screen.dir(control$nmulti, control$nscreen, p, tree.nindex , optim.fn, max_iter = 10)$init_points
+    start_save <- screen.dir(control$nmulti, control$nscreen, p, tree.nindex, optim.fn, max_iter = 10)$init_points
 
     for(i in 1:control$nmulti) {
       
