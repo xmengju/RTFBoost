@@ -15,6 +15,18 @@ You can install the development version of the package in R using:
 devtools::install_github("xmengju/RTFBoost", auth_token ='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')
 ```
 
+    ## 
+    ##      checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpbqcZV3/remotes1f814ac12e18/xmengju-RTFBoost-29b6a797c8ae906cc066c714926aad4215e58c13/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpbqcZV3/remotes1f814ac12e18/xmengju-RTFBoost-29b6a797c8ae906cc066c714926aad4215e58c13/DESCRIPTION’
+    ##   ─  preparing ‘RTFBoost’:
+    ##      checking DESCRIPTION meta-information ...  ✓  checking DESCRIPTION meta-information
+    ##   ─  checking for LF line-endings in source and make files and shell scripts
+    ##   ─  checking for empty or unneeded directories
+    ##        NB: this package now depends on R (>= 3.5.0)
+    ##        WARNING: Added dependency on R >= 3.5.0 because serialized objects in  serialize/load version 3 cannot be read in older versions of R.  File(s) containing such objects: ‘RTFBoost/data/fruitfly.RData’
+    ## ─  building ‘RTFBoost_0.1.tar.gz’
+    ##      
+    ## 
+
 Once installed you can load the package with:
 
 ``` r
@@ -41,7 +53,7 @@ distribution of the lifetime variable, measured in days.
 data(fruitfly)
 matplot(t(fruitfly$eggs), lty = 1, type = "l", ylab = "price", xlab = "days", 
         main = "number of eggs laid each day (10 days)", col='gray70', ylim=c(0, 150))
-set.seed(123)
+set.seed(0)
 n <- nrow(fruitfly$eggs)
 matplot(t(fruitfly$eggs[sample(n, 10), ]), type='l', col='red', add=TRUE, lty=1)
 hist(fruitfly$lifetime, xlab = "days", 
@@ -122,7 +134,7 @@ validation set (ℐ<sub>val</sub>) at early stopping time. Denote
 validation residuals as
 *r*<sub>*i*</sub> = *F̂*(*x*<sub>*i*</sub>) − *y*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>
 , the robust MSPE is defined as
-*μ̂*<sub>*M*</sub>({*r*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>}) + *σ̂*<sub>*M*</sub><sup>2</sup>({*r*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>}),
+*μ̂*<sub>*M*</sub><sup>2</sup>({*r*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>}) + *σ̂*<sub>*M*</sub><sup>2</sup>({*r*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>}),
 where *μ*<sub>*M*</sub> is the M-location estimator and
 *σ*<sub>*M*</sub> is the M-scale estimator. We use Tukey’s score
 function and let asymptotic efficiency of *μ*<sub>*M*</sub> and
@@ -317,11 +329,11 @@ print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
     ## [1] 150.3275 146.3308 147.3556 146.5420 146.5420 152.9956
 
 ``` r
-err.l2 <-cal.rmspe((model.l2$f.test- ytest))
-err.lad <-cal.rmspe( (model.lad$f.test- ytest))
-err.ladm <-cal.rmspe( (model.ladm$f.test- ytest))
-err.rr <-cal.rmspe( (model.rr$f.test- ytest))
-err.rr.m <-cal.rmspe( (model.rr.m$f.test- ytest))
+err.l2 <-cal.rmspe(model.l2$f.test- ytest)
+err.lad <-cal.rmspe(model.lad$f.test- ytest)
+err.ladm <-cal.rmspe(model.ladm$f.test- ytest)
+err.rr <-cal.rmspe(model.rr$f.test- ytest)
+err.rr.m <-cal.rmspe(model.rr.m$f.test- ytest)
 
 err.fgam <-  cal.rmspe( (predict(model.fgam,
                                newdata=list(xx =xtest),

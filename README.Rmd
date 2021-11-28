@@ -31,7 +31,7 @@ also plot the distribution of the lifetime variable, measured in days.
 data(fruitfly)
 matplot(t(fruitfly$eggs), lty = 1, type = "l", ylab = "price", xlab = "days", 
         main = "number of eggs laid each day (10 days)", col='gray70', ylim=c(0, 150))
-set.seed(123)
+set.seed(0)
 n <- nrow(fruitfly$eggs)
 matplot(t(fruitfly$eggs[sample(n, 10), ]), type='l', col='red', add=TRUE, lty=1)
 hist(fruitfly$lifetime, xlab = "days", 
@@ -95,7 +95,7 @@ $$
 \begin{equation}
 r_i = \hat{F}(x_i) - y_i, i \in \mathcal{I}_{\text{val}}
 \end{equation}
-$$, the robust MSPE is defined as $$\hat{\mu}_M( \{r_i, i \in \mathcal{I}_{\text{val}}\}) + \hat{\sigma}_M^2( \{r_i, i \in \mathcal{I}_{\text{val}}\}), $$
+$$, the robust MSPE is defined as $$\hat{\mu}_M^2( \{r_i, i \in \mathcal{I}_{\text{val}}\}) + \hat{\sigma}_M^2( \{r_i, i \in \mathcal{I}_{\text{val}}\}), $$
 where $\mu_M$ is the M-location estimator and $\sigma_M$ is the M-scale estimator. We use Tukey's score function and let asymptotic efficiency of  $\mu_M$ and $\sigma_M$ be 95%. Below is the function to compute robust MSPE: 
 
 ```{r rmspe, message=FALSE}
@@ -249,11 +249,11 @@ err.fgam <-  mean( (predict(model.fgam,
                                type='response') - ytest)^2 )
 print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
 
-err.l2 <-cal.rmspe((model.l2$f.test- ytest))
-err.lad <-cal.rmspe( (model.lad$f.test- ytest))
-err.ladm <-cal.rmspe( (model.ladm$f.test- ytest))
-err.rr <-cal.rmspe( (model.rr$f.test- ytest))
-err.rr.m <-cal.rmspe( (model.rr.m$f.test- ytest))
+err.l2 <-cal.rmspe(model.l2$f.test- ytest)
+err.lad <-cal.rmspe(model.lad$f.test- ytest)
+err.ladm <-cal.rmspe(model.ladm$f.test- ytest)
+err.rr <-cal.rmspe(model.rr$f.test- ytest)
+err.rr.m <-cal.rmspe(model.rr.m$f.test- ytest)
 
 err.fgam <-  cal.rmspe( (predict(model.fgam,
                                newdata=list(xx =xtest),

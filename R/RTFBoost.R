@@ -320,7 +320,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       }
     }
     
-    if(i == 1){
+    if(i == 1){  # initialize
       
       if(control$type %in% c("RR","LAD-M")){
           when.init <- 1
@@ -343,7 +343,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
           f.val.early <- f.val
         }
       }else{
-        
+        #loss.val[n.init] is changed at the n.init iteration 
         if(control$type %in% c("LAD-M", "RR")){
           if(round(loss.val[i], control$precision) < min(round(loss.val[(control$n.init):(i-1)], control$precision))){
             early.stop <- i
@@ -367,7 +367,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       f.val <- f.val.early
       ss <-  RobStatTM::mscale(f.train - y.train,  tuning.chi= cc, delta = bb)
       cc <- cc.m
-      loss.val[i] <- mean(func((f.val - y.val)/ss, cc = cc.m))
+      loss.val[i] <- mean(func((f.val - y.val)/ss, cc = cc))
     }
     
     if((control$type == "LAD-M") && (i == control$n.init)){
@@ -395,10 +395,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     model$early.stop.s1 <- when.init
   }
   
-
-
   model$tree.objs <- tree.objs
-  
   
   if(control$make.prediction){
     tmp_predict <- RTFBoost.predict(model, newx = x.test, newy = y.test, newz = z.test, grid = grid, t.range = t.range)
@@ -472,6 +469,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
 RTFBoost.predict <- function(model, newx, newz = NULL, newy = NULL, grid, t.range){
 
   control <- model$control
+  
   if(control$save.f){
     save.f.new <- matrix(NA, nrow(newx), model$early.stop)
   }
@@ -492,26 +490,50 @@ RTFBoost.predict <- function(model, newx, newz = NULL, newy = NULL, grid, t.rang
     if(control$save.f){
       save.f.new[,i] <- f.new
     }
-    
-    f.new <- f.new + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.objs[[i]], newx =  new.predictors, newz = newz)
-    
-    if(!missing(newy)){
-      err.new[i] <- switch(control$error.type,
-                            "mse" = {
-                              mse( f.new- newy)
-                            },
-                            "aad" = {
-                              aad(f.new - newy)
-                            },
-                            "tmse" = {
-                              if(control$trim.c!=NULL){
-                                tmse(trim_prop = NULL, trim_c = control$trim.c, f.new - newy)
-                              }else{
-                                tmse(trim_prop = control$trim_prop, trim_c = NULL, f.new - newy)
-                              }
-                            }
-                        )
+  
+    if(control$type %in% c("RR","LAD-M")){
+      if( (i <= model$when_init) | (i >=  (control$n_init+1))){
+        f.new <- f.new + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.objs[[i]], newx =  new.predictors, newz = newz)
+        if(!missing(newy)){
+          err.new[i] <- switch(control$error.type,
+                               "mse" = {
+                                 mse( f.new- newy)
+                               },
+                               "aad" = {
+                                 aad(f.new - newy)
+                               },
+                               "tmse" = {
+                                 if(control$trim.c!=NULL){
+                                   tmse(trim_prop = NULL, trim_c = control$trim.c, f.new - newy)
+                                 }else{
+                                   tmse(trim_prop = control$trim_prop, trim_c = NULL, f.new - newy)
+                                 }
+                               }
+          )
+        }
       }
+    }else{
+      f.new <- f.new + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.objs[[i]], newx =  new.predictors, newz = newz)
+      if(!missing(newy)){
+        err.new[i] <- switch(control$error.type,
+                             "mse" = {
+                               mse( f.new- newy)
+                             },
+                             "aad" = {
+                               aad(f.new - newy)
+                             },
+                             "tmse" = {
+                               if(control$trim.c!=NULL){
+                                 tmse(trim_prop = NULL, trim_c = control$trim.c, f.new - newy)
+                               }else{
+                                 tmse(trim_prop = control$trim_prop, trim_c = NULL, f.new - newy)
+                               }
+                             }
+        )
+      }
+    }
+    
+   
     
   }
   

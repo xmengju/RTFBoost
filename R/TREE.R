@@ -57,6 +57,7 @@ TREE <-function(x, y, z, random.seed, control = TREE.control()) {
   p <- ncol(x)
 
   tree.nindex <- control$tree.nindex
+  
   if(control$tree.type == "A"){
     
     fval.min <- Inf
