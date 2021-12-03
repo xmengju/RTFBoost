@@ -625,10 +625,14 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
   
   flagger_outlier <- which(abs(model_best$f.val - y.val)>3*mad(model_best$f.val - y.val))
   
-  if(length(flagger_outlier)>=1){
-    best_err <- mean(abs(model_best$f.val[-flagger_outlier] - y.val[-flagger_outlier]))  
+  if(length(flagger_outlier) == length(y.val)){
+    best_err <- Inf
   }else{
-    best_err <- mean(abs(model_best$f.val - y.val))
+    if(length(flagger_outlier)>=1){
+      best_err <- mean(abs(model_best$f.val[-flagger_outlier] - y.val[-flagger_outlier]))  
+    }else{
+      best_err <- mean(abs(model_best$f.val - y.val))
+    }
   }
   
   params = c(0,0)
@@ -733,10 +737,14 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
                               x.test = x.test, y.test = y.test, grid = grid, t.range  = t.range,
                               control = control.tmp, tree.init = tree_init_list[[j]])
         
-        if(length(flagger_outlier) >=1){
-          err_tmp <- mean(abs(model_tmp$f.val[-flagger_outlier] - y.val[-flagger_outlier]))
+        if(length(flagger_outlier) == length(y.val)){
+          err_tmp <- Inf
         }else{
-          err_tmp <- mean(abs(model_tmp$f.val - y.val))
+          if(length(flagger_outlier) >=1){
+            err_tmp <- mean(abs(model_tmp$f.val[-flagger_outlier] - y.val[-flagger_outlier]))
+          }else{
+            err_tmp <- mean(abs(model_tmp$f.val - y.val))
+          }
         }
         
         errs_val[j+1] <- err_tmp

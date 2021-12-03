@@ -45,14 +45,6 @@ TREE.control <- function(tree.type = "A",  tree.nindex = 1, max.depth = 1, num.d
 #' @author Xiaomeng Ju, \email{xiaomeng.ju@stat.ubc.ca}
 #' 
 #' @export
-
-lean_rpart.fn <- function(tree_fitted){
-  tree_fitted$where <- NULL
-  tree_fitted$y <- NULL
-  return(tree_fitted)
-}
-
-
 TREE <-function(x, y, z, random.seed, control = TREE.control()) {
   
   
@@ -293,6 +285,12 @@ screen.dir <- function(nmulti, nscreen, p, num_index, optim.fn,  max_iter = 10){
   return(list(init_points = matrix(tmp[idx_tmp,], ncol = p-1)))
 }
 
+
+lean_rpart.fn <- function(tree_fitted){
+  tree_fitted$where <- NULL
+  tree_fitted$y <- NULL
+  return(tree_fitted)
+}
 
 # set.seed(123)
 # n <- 200; p <- 5
