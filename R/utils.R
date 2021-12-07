@@ -166,7 +166,7 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
     }
     obj_val <- Inf
     min_val <- 0
-    for(upper in c(1,5,10)){
+    for(upper in c(1,5,10,20,30)){
       tmp <- optimize(ff, lower = -1, upper = upper, r = y.train - f.train, h = h.train)
       if(tmp$objective < obj_val){
         obj_val <- tmp$objective
@@ -201,8 +201,9 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
     }
   }
   if( (type == "RR" & init.status == 1) ||(type == "LAD-M" & init.status == 1) ){
+    
     ff4 <- function(a, r, h, c, s) return(mean(func( (r - a*h)/s,  c)))
-    upper_region = c(0.5,10,100,200,300,500,800)
+    upper_region = c(0.5,10,100,200,300,500,800,3000,5000)
     tmp <- rep(NA, length(upper_region))
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){

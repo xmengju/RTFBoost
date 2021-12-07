@@ -263,11 +263,12 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
 
   for(i in 1:control$niter){
     
+    
     if(control$save.f){
       save.f.train[,i] <- f.train
       save.f.val[,i] <- f.val
     }
-    
+
     if(control$trace){
       
       if(i%%100 ==0 )
@@ -380,6 +381,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       func.grad <- func.grad.2
       loss.val[i] <- mean(func((f.val - y.val)/ss, cc = cc))
     }
+    
     
   }
   
