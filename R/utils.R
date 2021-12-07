@@ -178,7 +178,7 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
   
   if(type == "RR" & init.status == 0) {
     ff3 <- function(a, r, h) return(RobStatTM::mscale(r - a*h, delta = bb))
-    upper_region = c(0.5,10,100,300,500)
+    upper_region = c(0.5,10,100,300,500,800,1000)
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
       val = optimize(ff3, lower = -1, upper = upper_region[i], r = y.train - f.train, h = h.train)
@@ -202,7 +202,7 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
   }
   if( (type == "RR" & init.status == 1) ||(type == "LAD-M" & init.status == 1) ){
     ff4 <- function(a, r, h, c, s) return(mean(func( (r - a*h)/s,  c)))
-    upper_region = c(0.5,10,100)
+    upper_region = c(0.5,10,100,200,300,500,800)
     tmp <- rep(NA, length(upper_region))
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
