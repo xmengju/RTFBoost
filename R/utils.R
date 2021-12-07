@@ -178,7 +178,7 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
   
   if(type == "RR" & init.status == 0) {
     ff3 <- function(a, r, h) return(RobStatTM::mscale(r - a*h, delta = bb))
-    upper_region = c(0.5,10,100,300,500,800,1000)
+    upper_region = c(0.5,10,100,300,500,800,1000,3000,5000)
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
       val = optimize(ff3, lower = -1, upper = upper_region[i], r = y.train - f.train, h = h.train)
