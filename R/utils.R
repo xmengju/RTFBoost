@@ -153,7 +153,7 @@ cal.ss.rr <- function(f.train, y.train,  cc, bb) {
 }
 
 
-
+#' @export
 cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb, cc){
   
   if(type == "L2"){

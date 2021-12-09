@@ -261,7 +261,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     cc <- 1
   }
 
-  for(i in 1:control$niter){
+  for(i in 1: (control$n.init - 1)){
     
     
     if(control$save.f){
@@ -366,7 +366,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       init.status <- 1
       f.train <- f.train.early  # reset the current one
       f.val <- f.val.early
-      ss <-  RobStatTM::mscale(f.train - y.train,  tuning.chi= cc, delta = bb)
+      ss <-  RobStatTM::mscale(f.train - y.train, delta = bb)
       cc <- cc.m
       loss.val[i] <- mean(func((f.val - y.val)/ss, cc = cc))
     }
@@ -375,7 +375,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       init.status <- 1
       f.train <- f.train.early  # reset the current one
       f.val <- f.val.early
-      ss <-  RobStatTM::mscale(f.train - y.train,  tuning.chi= cc, delta = bb)
+      ss <-  RobStatTM::mscale(f.train - y.train, delta = bb)
       cc <- cc.m
       func <- func.2
       func.grad <- func.grad.2
@@ -401,6 +401,10 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     tmp_predict <- RTFBoost.predict(model, newx = x.test, newy = y.test, newz = z.test, grid = grid, t.range = t.range)
     model$f.test <- tmp_predict$f.new
     model$err.test <- tmp_predict$err.new
+    if(control$save.f){
+      model$save.f.test <- tmp_predict$save.f.new
+      
+    }
   }
   
 
