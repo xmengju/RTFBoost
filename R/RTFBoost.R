@@ -261,7 +261,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     cc <- 1
   }
 
-  for(i in 1: (control$n.init - 1)){
+  for(i in 1: (control$niter)){
     
     
     if(control$save.f){
