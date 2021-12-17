@@ -166,7 +166,7 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
     }
     obj_val <- Inf
     min_val <- 0
-    for(upper in c(1,5,10,20,30)){
+    for(upper in c(1,5,10)){
       tmp <- optimize(ff, lower = -1, upper = upper, r = y.train - f.train, h = h.train)
       if(tmp$objective < obj_val){
         obj_val <- tmp$objective
