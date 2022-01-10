@@ -37,8 +37,8 @@
 #' @param trim.prop a numeric value used as the trimming proportion  if  "tmse"  is  used  as  the  performance  metric. 
 #' "tmse" calculates the mean-square error of residuals (r) of which |r| < quantile(|r|, 1-trim_prop) (e.g. trim_prop = 0.1 ignores 10% of the data and calculates MSE of residuals whose absolute values are below 90% quantile of |r|). If both \code{trim.prop} and \code{trim.c} are specified, \code{trim.c} will be used.
 #' @param trim.c a numeric value used for trimming if "trmse" is used as the performance metric  (defaults  to  3). "tmse"  calculates  the  mean squared error  of  the residuals(r) between median(r) + trim_c mad(r) and median(r) - trim_c mad(r).  If both \code{trim.prop} and \code{trim.c} are specified, \code{trim.c} will be used.
+#' @param stage.no a numeric value indicating which stages are executed, required by RTFBoost(LAD-M) and RTFBoost(RR): 0 runs both stages, 1 runs the first stage only, and 2 runs the second stage only   (defaults  to 0). 
 #' @return A list of all input parameters
-#'
 #' @author Xiaomeng Ju, \email{xiaomeng.ju@stat.ubc.ca}
 #' 
 #' @export
@@ -52,13 +52,13 @@ RTFBoost.control <- function(make.prediction = TRUE, type = "RR",
                              tree.control = TREE.control(), 
                              shrinkage  = 0.05,  n.init = 100, niter = 100, nknot = 3, precision = 4, 
                              save.f = FALSE, trace = FALSE, save.tree = FALSE, 
-                             error.type = "mse", trim.prop = NULL, trim.c = 3){
+                             error.type = "mse", trim.prop = NULL, trim.c = 3, stage.no = 0){
 
   return(list(make.prediction =  make.prediction, type = type, eff = eff, bb = bb, 
               init.type = init.type, init.tree.params =  init.tree.params, loss.s2  = loss.s2 , tree.control = tree.control, 
               shrinkage  = shrinkage,  n.init = n.init, niter = niter, nknot = nknot, precision = precision,
               save.f = save.f , trace = trace, save.tree = save.tree, 
-              error.type = error.type, trim.prop = trim.prop, trim.c = trim.c))
+              error.type = error.type, trim.prop = trim.prop, trim.c = trim.c, stage.no = stage.no))
 }
 
 
@@ -81,12 +81,15 @@ RTFBoost.control <- function(make.prediction = TRUE, type = "RR",
 #' @param grid a vector of time points at which  \code{x.train} and \code{x.val} are evaluated. 
 #' @param t.range a vector provided in the form of c(a, b), where a and b are numerical values specifying the boundaries of the domain of the functional predictor.  
 #' @param control a named list of control parameters as returned by \link{RTFBoost.control}.
-#' @param ...  optional additional arguments passed to \code{RTFBoost}, including components \code{user.loss} and \code{tree.init}.  
+#' @param ...  optional additional arguments passed to \code{RTFBoost}, including components \code{user.loss}, \code{tree.init}, and \code{fitted.1st}.  
 #' 
 #' \code{user.loss} is a list that specifies a user-defined loss  to replace the L2 loss used by TFBoost(L2), including components 
 #' \code{func} and \code{func.grad}, denoting the loss function and its derivative respectively; 
 #' 
 #' \code{tree.init} is a user-provided object that has the same form as the one returned from \link{TREE}. It is used as the tree to initialize the boosting estimator. 
+#' \code{fitted.1st} is a list of fitted values for the first stage, required if \code{stage.no} = 1 in \code{control}, including components 
+#' \code{f.train},\code{f.val}, and \code{f.test} denoting the predicted values  for the training, validation, and test set respectively; \code{f.test} is not required if 
+#' \code{make.prediction = FALSE}  in \code{control}. 
 #' 
 #' @return A list with the following components:
 #'
@@ -158,6 +161,19 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
   }
   
   n.train <- nrow(x.train); n.val <- nrow(x.val)
+  
+  if(control$stage.no == 1){
+    control$niter <- control$n.init 
+  }
+  
+  if(control$stage.no == 2){
+    n.init.ori <- control$n.init 
+    control$n.init <- 0
+    f.train <-  list(...)$fitted.1st$f.train
+    f.val <-  list(...)$fitted.1st$f.val
+  }
+
+  
   niter <- control$niter
   
   if(control$save.f){
@@ -225,62 +241,88 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     cc.m <- uniroot( function(e) (cal.efficiency(e, func.huber.grad,func.huber.grad.prime)-control$eff), lower=0.1, upper=5)$root
   }
   
-  if(control$init.type!="LADTree"){
-     init.vals <- function(newx,newz){rep(init.func(y.train), nrow(newx))}
-  }else{
-    if(is.null(z.train)){
-      dat.tmp <- data.frame(x.train, y.train = y.train)
+  if(control$stage.no!=2){
+    
+    if(control$init.type!="LADTree" ){
+       init.vals <- function(newx,newz){rep(init.func(y.train), nrow(newx))}
     }else{
-      dat.tmp <- data.frame(x.train, y.train = y.train, z.train = z.train)
+      if(is.null(z.train)){
+        dat.tmp <- data.frame(x.train, y.train = y.train)
+      }else{
+        dat.tmp <- data.frame(x.train, y.train = y.train, z.train = z.train)
+      }
+      
+      if(!exists("tree.init")){
+        init.tree.params <- control$init.tree.params 
+        tree.init <- TREE.init(x = train.predictors, y = y.train, z = z.train, random.seed = 0, 
+                               tree.type = init.tree.params$tree.type, 
+                               tree.nindex = init.tree.params$tree.nindex, 
+                               max.depth = init.tree.params$max.depth, 
+                               num.dir = init.tree.params$num.dir,
+                               min.leafsize = init.tree.params$min.leafsize,
+                               make.prediction = FALSE,  
+                                init.nmulti = 3)
+      }
+      init.vals <- function(newx,newz){TREE.init.predict(model = tree.init, newx = newx, newz = newz)}
     }
-    
-    if(!exists("tree.init")){
-      init.tree.params <- control$init.tree.params 
-      tree.init <- TREE.init(x = train.predictors, y = y.train, z = z.train, random.seed = 0, 
-                             tree.type = init.tree.params$tree.type, 
-                             tree.nindex = init.tree.params$tree.nindex, 
-                             max.depth = init.tree.params$max.depth, 
-                             num.dir = init.tree.params$num.dir,
-                             min.leafsize = init.tree.params$min.leafsize,
-                             make.prediction = FALSE,  
-                              init.nmulti = 3)
-    }
-    init.vals <- function(newx,newz){TREE.init.predict(model = tree.init, newx = newx, newz = newz)}
-  }
+   }else{
+      init.vals <- function(newx, newz){return(list(...)$fitted.1st$f.test)}
+   }
 
-  f.train <-  init.vals(train.predictors, z.train)
-  f.val <-  init.vals(val.predictors, z.val)
+  if(control$stage.no!=2){
+    f.train <-  init.vals(train.predictors, z.train)
+    f.val <-  init.vals(val.predictors, z.val)
+    init.status <- 0
+  }else{
+    init.status <- 1
+  }
     
-  init.status <- 0; ss <- 1;  bb <- control$bb
-  
+  ss <- 1;  bb <- control$bb
   model <- list(tree.objs = list())
+  
   # initial cc 
   if(control$type == "RR"){
-    cc <- cc.s
+    if(control$stage.no!=2){
+      cc <- cc.s
+      }else{
+        
+      cc<- cc.m
+    }
   }else{  
-    cc <- 1
+    if(control$type == "LAD-M"){
+      if(control$stage.no!=2){
+        cc <- 1
+      }else{
+        func <- func.2
+        func.grad <- func.grad.2
+        cc <- cc.m
+      }
+    }else{
+      cc <- 1
+    }
   }
 
   for(i in 1: (control$niter)){
-    
-    
-    if(control$save.f){
-      save.f.train[,i] <- f.train
-      save.f.val[,i] <- f.val
-    }
 
     if(control$trace){
       
-      if(i%%100 ==0 )
+      if(i%%100 ==0)
       print(paste(i,"th iteration out of", niter, "iterations"))
     }
     
-    if(control$type == "RR" & init.status == 0) {
-      ss <- cal.ss.rr(f.train, y.train,  cc = cc.s, bb)
+    if( (control$type == "RR" & init.status == 0) | (i == 1 & control$stage.no == 2)) {
+       ss <- cal.ss.rr(f.train, y.train,  cc = cc.s, bb)
     }
-
+    
     u <- as.numeric(cal.neggrad(control$type, y.train, f.train, func.grad, init.status, ss, cc))
-    model$tree.objs[[i]] <- TREE(x = train.predictors, y = u, z = z.train, random.seed = i, control = control$tree.control)
+
+    if(control$stage.no != 2){ 
+      random.seed <- i
+    }else{
+      random.seed <- n.init.ori + i
+    }
+    
+    model$tree.objs[[i]] <- TREE(x = train.predictors, y = u, z = z.train, random.seed = random.seed, control = control$tree.control)
     model$tree.objs[[i]]$tree.model <- lean_rpart.fn(tree_fitted = model$tree.objs[[i]]$tree.model)
 
     h.train <- model$tree.objs[[i]]$pred
@@ -323,8 +365,10 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     
     if(i == 1){  # initialize
       
-      if(control$type %in% c("RR","LAD-M")){
-          when.init <- 1
+      if(control$stage.no!=2){
+        if(control$type %in% c("RR","LAD-M")){
+            when.init <- 1
+        }
       }
       
       early.stop <- 1
@@ -382,20 +426,34 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       loss.val[i] <- mean(func((f.val - y.val)/ss, cc = cc))
     }
     
-    
+    if(control$save.f){
+      save.f.train[,i] <- f.train
+      save.f.val[,i] <- f.val
+    }
   }
-  
   
   f.train <- f.train.early
   f.val <- f.val.early
   
 
+  # if( (control$type %in% c("LAD-M","RR")) & control$stage.no==1){
+  #   model$ss.s1 <-  ss
+  # }
+  # 
+  # if( (control$type %in% c("LAD-M","RR"))& control$stage.no==0){
+  #   model$ss.s1 <- ss
+  # }
+  
   model <- c(model, list(loss.train=loss.train, loss.val = loss.val, f.train =  f.train, f.val = f.val, early.stop = early.stop, err.train = err.train, 
                  err.val = err.val, init.vals = init.vals,  alpha = alpha, control = control))
   
-  if(control$type %in% c("LAD-M","RR")){
+  if( (control$type %in% c("LAD-M","RR")) & control$stage.no!=2){
     model$early.stop.s1 <- when.init
   }
+  
+
+  
+  
   
   if(control$make.prediction){
     tmp_predict <- RTFBoost.predict(model, newx = x.test, newy = y.test, newz = z.test, grid = grid, t.range = t.range)
@@ -486,16 +544,13 @@ RTFBoost.predict <- function(model, newx, newz = NULL, newy = NULL, grid, t.rang
   B <- compute.orthonormal(B, grid, t.range)
   
   new.predictors <- t(apply(newx, 1, function(xx){apply(B, 2, function(bb){riemman (xx*bb, grid, t.range)})}))
+  
   f.new  <- model$init.vals(new.predictors, newz)
   err.new <- rep(NA, model$early.stop)
   
   for(i in 1: model$early.stop){
-    
-    if(control$save.f){
-      save.f.new[,i] <- f.new
-    }
-  
-    if(control$type %in% c("RR","LAD-M")){
+
+    if(control$type %in% c("RR","LAD-M") & control$stage.no != 2){
       if( (i <= model$early.stop.s1) | (i >=  (control$n.init+1))){
         f.new <- f.new + control$shrinkage*model$alpha[i]* TREE.predict(model$tree.objs[[i]], newx =  new.predictors, newz = newz)
         if(!missing(newy)){
@@ -538,7 +593,10 @@ RTFBoost.predict <- function(model, newx, newz = NULL, newy = NULL, grid, t.rang
     }
     
    
-    
+  
+    if(control$save.f){
+      save.f.new[,i] <- f.new
+    }
   }
   
   res = list(f.new = f.new)
@@ -797,3 +855,9 @@ RTFBoost.validation <- function(x.train, z.train = NULL, y.train,  x.val,  z.val
   return(res)
 }
 
+
+
+RTFBoost.parallel <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.val, x.test = NULL, z.test = NULL, y.test = NULL, grid, t.range, control = RTFBoost.control(), ...){
+  
+  
+}

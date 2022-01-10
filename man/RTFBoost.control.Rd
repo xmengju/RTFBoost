@@ -24,7 +24,8 @@ RTFBoost.control(
   save.tree = FALSE,
   error.type = "mse",
   trim.prop = NULL,
-  trim.c = 3
+  trim.c = 3,
+  stage.no = 0
 )
 }
 \arguments{
@@ -76,6 +77,8 @@ RTFBoost.control(
 "tmse" calculates the mean-square error of residuals (r) of which |r| < quantile(|r|, 1-trim_prop) (e.g. trim_prop = 0.1 ignores 10\% of the data and calculates MSE of residuals whose absolute values are below 90\% quantile of |r|). If both \code{trim.prop} and \code{trim.c} are specified, \code{trim.c} will be used.}
 
 \item{trim.c}{a numeric value used for trimming if "trmse" is used as the performance metric  (defaults  to  3). "tmse"  calculates  the  mean squared error  of  the residuals(r) between median(r) + trim_c mad(r) and median(r) - trim_c mad(r).  If both \code{trim.prop} and \code{trim.c} are specified, \code{trim.c} will be used.}
+
+\item{stage.no}{a numeric value indicating which stages are executed, required by RTFBoost(LAD-M) and RTFBoost(RR): 0 runs both stages, 1 runs the first stage only, and 2 runs the second stage only   (defaults  to 0).}
 }
 \value{
 A list of all input parameters

@@ -45,12 +45,15 @@ RTFBoost(
 
 \item{control}{a named list of control parameters as returned by \link{RTFBoost.control}.}
 
-\item{...}{optional additional arguments passed to \code{RTFBoost}, including components \code{user.loss} and \code{tree.init}.
+\item{...}{optional additional arguments passed to \code{RTFBoost}, including components \code{user.loss}, \code{tree.init}, and \code{fitted.1st}.
 
 \code{user.loss} is a list that specifies a user-defined loss  to replace the L2 loss used by TFBoost(L2), including components
 \code{func} and \code{func.grad}, denoting the loss function and its derivative respectively;
 
-\code{tree.init} is a user-provided object that has the same form as the one returned from \link{TREE}. It is used as the tree to initialize the boosting estimator.}
+\code{tree.init} is a user-provided object that has the same form as the one returned from \link{TREE}. It is used as the tree to initialize the boosting estimator.
+\code{fitted.1st} is a list of fitted values for the first stage, required if \code{stage.no} = 1 in \code{control}, including components
+\code{f.train},\code{f.val}, and \code{f.test} denoting the predicted values  for the training, validation, and test set respectively; \code{f.test} is not required if
+\code{make.prediction = FALSE}  in \code{control}.}
 }
 \value{
 A list with the following components:

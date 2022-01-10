@@ -148,12 +148,11 @@ cal.neggrad <- function(type, y.train, f.train, func.grad, init.status, ss, cc){
 
 cal.ss.rr <- function(f.train, y.train,  cc, bb) {
   
-  ss <- RobStatTM::mscale(f.train - y.train,  tuning.chi=cc, delta = bb)
+  ss <- RobStatTM::mscale(f.train - y.train, delta = bb)
   return(ss)
 }
 
 
-#' @export
 cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb, cc){
   
   if(type == "L2"){
