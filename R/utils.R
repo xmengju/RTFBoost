@@ -202,11 +202,12 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
   if( (type == "RR" & init.status == 1) ||(type == "LAD-M" & init.status == 1) ){
     
     ff4 <- function(a, r, h, c, s) return(mean(func( (r - a*h)/s,  c)))
-    upper_region = c(0.5,10,100,200,300,500,800,3000,5000)
+    #upper_region = c(0.01,0.1,0.5,10,100,200,300,500,800,3000,5000)
+    upper_region = c(0.01,0.1,0.5,1,5)
     tmp <- rep(NA, length(upper_region))
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
-      val = optimize(ff4, lower = -1, upper = upper_region[i], r = y.train - f.train, h = h.train, c = cc, s = ss)
+      val = optimize(ff4, lower = -0.01, upper = upper_region[i], r = y.train - f.train, h = h.train, c = cc, s = ss)
       tmp[i] <- val$minimum
       tmp_val[i] <- val$objective
     }

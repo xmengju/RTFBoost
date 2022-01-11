@@ -302,7 +302,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     }
   }
 
-  for(i in 1: (control$niter)){
+  for(i in 1: control$niter){
 
     if(control$trace){
       
@@ -328,6 +328,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
     h.train <- model$tree.objs[[i]]$pred
     h.val <- TREE.predict(model$tree.objs[[i]], newx = val.predictors, newz = z.val)
 
+    
     alpha[i] <- cal.alpha(f.train, h.train, y.train, func, control$type, init.status, ss, bb, cc)
       
     f.train <-  f.train + control$shrinkage*alpha[i]*h.train
