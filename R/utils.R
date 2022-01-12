@@ -203,7 +203,9 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
     
     ff4 <- function(a, r, h, c, s) return(mean(func( (r - a*h)/s,  c)))
     #upper_region = c(0.01,0.1,0.5,10,100,200,300,500,800,3000,5000)
-    upper_region = c(0.01,0.1,0.5,1,5)
+    #upper_region = c(0.01,0.1,0.5,1,5)
+    upper_region = c(0.01,0.1,0.5,5,10,100,200,300)
+    
     tmp <- rep(NA, length(upper_region))
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
