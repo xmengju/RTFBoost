@@ -2,7 +2,7 @@ RTFBoost: a package for (robust) tree-based functional boosting
 algorithms
 ================
 Xiaomeng Ju and Matias Salibian Barrera
-2021-11-27
+2026-04-30
 
 This repository contains `R` code implementing a robust tree-based
 boosting algorithm for scalar-on-function regression.
