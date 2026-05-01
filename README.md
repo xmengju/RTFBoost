@@ -143,7 +143,7 @@ function and let asymptotic efficiency of *μ*<sub>*M*</sub> and
 ``` r
 cal.rmspe <- function(r){
   tmp <-  RobStatTM::locScaleM(x=r, psi='bisquare', eff= 0.95)
-  return( val.errors[dd] <- tmp$mu^2 + tmp$disper^2)
+  return(tmp$mu^2 + tmp$disper^2)
 }
 ```
 
