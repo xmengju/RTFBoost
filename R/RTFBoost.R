@@ -411,7 +411,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       init.status <- 1
       f.train <- f.train.early  # reset the current one
       f.val <- f.val.early
-      ss <-  RobStatTM::mscale(f.train - y.train, delta = bb)
+      ss <-  RobStatTM::scaleM(f.train - y.train, delta = bb)
       cc <- cc.m
       loss.val[i] <- mean(func((f.val - y.val)/ss, cc = cc))
     }
@@ -420,7 +420,7 @@ RTFBoost <- function(x.train, z.train = NULL, y.train, x.val, z.val = NULL, y.va
       init.status <- 1
       f.train <- f.train.early  # reset the current one
       f.val <- f.val.early
-      ss <-  RobStatTM::mscale(f.train - y.train, delta = bb)
+      ss <-  RobStatTM::scaleM(f.train - y.train, delta = bb)
       cc <- cc.m
       func <- func.2
       func.grad <- func.grad.2

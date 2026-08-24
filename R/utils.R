@@ -148,7 +148,7 @@ cal.neggrad <- function(type, y.train, f.train, func.grad, init.status, ss, cc){
 
 cal.ss.rr <- function(f.train, y.train,  cc, bb) {
   
-  ss <- RobStatTM::mscale(f.train - y.train, delta = bb)
+  ss <- RobStatTM::scaleM(f.train - y.train, delta = bb)
   return(ss)
 }
 
@@ -176,7 +176,7 @@ cal.alpha <- function(f.train, h.train, y.train, func, type, init.status, ss, bb
   }
   
   if(type == "RR" & init.status == 0) {
-    ff3 <- function(a, r, h) return(RobStatTM::mscale(r - a*h, delta = bb))
+    ff3 <- function(a, r, h) return(RobStatTM::scaleM(r - a*h, delta = bb))
     upper_region = c(0.5,10,100,300,500,800,1000,3000,5000)
     tmp <-  tmp_val <- rep(NA, length(upper_region))
     for(i in 1:length(upper_region)){
