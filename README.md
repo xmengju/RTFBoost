@@ -2,7 +2,7 @@ RTFBoost: a package for (robust) tree-based functional boosting
 algorithms
 ================
 Xiaomeng Ju and Matias Salibian Barrera
-2026-04-30
+2026-08-23
 
 This repository contains `R` code implementing a robust tree-based
 boosting algorithm for scalar-on-function regression.
@@ -12,18 +12,29 @@ boosting algorithm for scalar-on-function regression.
 You can install the development version of the package in R using:
 
 ``` r
-devtools::install_github("xmengju/RTFBoost", auth_token ='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')
+devtools::install_github("xmengju/RTFBoost")
 ```
 
+    ## DEoptimR (1.1-4 -> 1.2-1) [CRAN]
+    ## mvtnorm  (1.3-6 -> 1.4-2) [CRAN]
+    ## Rcpp     (1.1.1 -> 1.1.2) [CRAN]
+    ## lme4     (2.0-1 -> 2.0-6) [CRAN]
+
     ## 
-    ##      checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpLDlF5x/remotes63b9522b91e6/xmengju-RTFBoost-94f57220d2f09228564b3ccc67d56a4dc339e101/DESCRIPTION’ ...  ✓  checking for file ‘/private/var/folders/8s/0xr7pswx7sq7sq641ng4g75w0000gn/T/RtmpLDlF5x/remotes63b9522b91e6/xmengju-RTFBoost-94f57220d2f09228564b3ccc67d56a4dc339e101/DESCRIPTION’
+    ## The downloaded binary packages are in
+    ##  /var/folders/wv/nltvdj6j4j5003tn7xxjybxr0000gn/T//RtmpmxqITr/downloaded_packages
+    ## ── R CMD build ─────────────────────────────────────────────────────────────────
+    ##      checking for file ‘/private/var/folders/wv/nltvdj6j4j5003tn7xxjybxr0000gn/T/RtmpmxqITr/remotes167bf1b3fd87f/xmengju-RTFBoost-d80fdbc/DESCRIPTION’ ...  ✔  checking for file ‘/private/var/folders/wv/nltvdj6j4j5003tn7xxjybxr0000gn/T/RtmpmxqITr/remotes167bf1b3fd87f/xmengju-RTFBoost-d80fdbc/DESCRIPTION’
     ##   ─  preparing ‘RTFBoost’:
-    ##      checking DESCRIPTION meta-information ...  ✓  checking DESCRIPTION meta-information
+    ##      checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
     ##   ─  checking for LF line-endings in source and make files and shell scripts
     ##   ─  checking for empty or unneeded directories
     ##        NB: this package now depends on R (>= 3.5.0)
-    ##        WARNING: Added dependency on R >= 3.5.0 because serialized objects in  serialize/load version 3 cannot be read in older versions of R.  File(s) containing such objects: ‘RTFBoost/data/fruitfly.RData’
-    ## ─  building ‘RTFBoost_0.1.tar.gz’
+    ##        WARNING: Added dependency on R >= 3.5.0 because serialized objects in
+    ##      serialize/load version 3 cannot be read in older versions of R.
+    ##      File(s) containing such objects:
+    ##        ‘RTFBoost/data/fruitfly.RData’
+    ##   ─  building ‘RTFBoost_0.1.tar.gz’
     ##      
     ## 
 
@@ -91,12 +102,12 @@ ytest <- fruitfly$lifetime[idx_test ]
 The `RTFBoost` function implements tree-based functional boosting with
 four options:
 
--   `TFBoost(LS)`: TFBoost with the squared loss;
--   `TFBoost(LAD)`: TFBoost with the L1 loss;
--   `RTFBoost(LAD-M)`: two-stage robust TFBoost that involves a
-    LAD-stage and an M-stage; and
--   `RTFBoost(RR)`: two-stage robust TFBoost that involves an S-stage
-    and an M-stage.
+- `TFBoost(LS)`: TFBoost with the squared loss;
+- `TFBoost(LAD)`: TFBoost with the L1 loss;
+- `RTFBoost(LAD-M)`: two-stage robust TFBoost that involves a LAD-stage
+  and an M-stage; and
+- `RTFBoost(RR)`: two-stage robust TFBoost that involves an S-stage and
+  an M-stage.
 
 These options correspond to setting `control$type = 'L2'`,
 `control$type = 'LAD'`, `control$type = 'LAD-M'`, and
@@ -130,20 +141,22 @@ init.type <- "median" # intialize with the median of the training responses
 The depth of the base learners in `RTFBoost` is set with the argument
 `max.depth` in `control$tree.control`. We considered `max.depth` from 1
 to 4, and chose the depth the minimizes the robust MSPE on the
-validation set (ℐ<sub>val</sub>) at early stopping time. Denote
-validation residuals as
-*r*<sub>*i*</sub> = *F̂*(*x*<sub>*i*</sub>) − *y*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>
-, the robust MSPE is defined as
-*μ̂*<sub>*M*</sub><sup>2</sup>({*r*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>}) + *σ̂*<sub>*M*</sub><sup>2</sup>({*r*<sub>*i*</sub>, *i* ∈ ℐ<sub>val</sub>}),
-where *μ*<sub>*M*</sub> is the M-location estimator and
-*σ*<sub>*M*</sub> is the M-scale estimator. We use Tukey’s score
-function and let asymptotic efficiency of *μ*<sub>*M*</sub> and
-*σ*<sub>*M*</sub> be 95%. Below is the function to compute robust MSPE:
+validation set ($\mathcal{I}_{\text{val}}$) at early stopping time.
+Denote validation residuals as $$
+\begin{equation}
+r_i = \hat{F}(x_i) - y_i, i \in \mathcal{I}_{\text{val}}
+\end{equation}
+$$, the robust MSPE is defined as
+$$\hat{\mu}_M^2( \{r_i, i \in \mathcal{I}_{\text{val}}\}) + \hat{\sigma}_M^2( \{r_i, i \in \mathcal{I}_{\text{val}}\}), $$
+where $\mu_M$ is the M-location estimator and $\sigma_M$ is the M-scale
+estimator. We use Tukey’s score function and let asymptotic efficiency
+of $\mu_M$ and $\sigma_M$ be 95%. Below is the function to compute
+robust MSPE:
 
 ``` r
 cal.rmspe <- function(r){
   tmp <-  RobStatTM::locScaleM(x=r, psi='bisquare', eff= 0.95)
-  return(tmp$mu^2 + tmp$disper^2)
+  return( val.errors[dd] <- tmp$mu^2 + tmp$disper^2)
 }
 ```
 
@@ -273,7 +286,8 @@ params <- model.list.rr[[which.min(val.errors)]]$params
 print(params)
 ```
 
-    ## [1] 0 0
+    ##   min_leafs max_depths
+    ## 1        10          1
 
 `RTFBoost(RR)` initialized with the median of training responses.
 
@@ -326,7 +340,7 @@ err.fgam <-  mean( (predict(model.fgam,
 print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
 ```
 
-    ## [1] 150.3275 146.3308 145.6103 146.5420 146.5420 152.9956
+    ## [1] 150.3275 145.6992 145.3288 150.9795 146.8934 152.9956
 
 ``` r
 err.l2 <-cal.rmspe(model.l2$f.test- ytest)
@@ -342,7 +356,7 @@ err.fgam <-  cal.rmspe( (predict(model.fgam,
 print(c(err.l2, err.lad, err.ladm, err.rr, err.rr.m, err.fgam))
 ```
 
-    ## [1] 114.59009  96.90441  97.00620  88.19130  88.19130 125.81592
+    ## [1] 116.33195  97.48760  97.96605 103.63262  95.22485 127.61979
 
 For `RTFBoost`, we can also separate the process of training the
 predictor and evaluating it on a test set. In this way we have the
